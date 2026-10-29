@@ -1,0 +1,6 @@
+{
+  "name": "MateMéxico",
+  "description": "Juego educativo de matemáticas adaptado al currículo mexicano con desafíos cronometrados, medallas artesanales, y modo cooperativo regional.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

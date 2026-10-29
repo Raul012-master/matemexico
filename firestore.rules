@@ -1,0 +1,185 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Profile Validation
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 50 &&
+             data.grade is string && data.grade.size() > 0 && data.grade.size() <= 30 &&
+             data.selectedState is string && data.selectedState.size() > 0 && data.selectedState.size() <= 40 &&
+             data.characterAvatar is string && data.characterAvatar.size() > 0 && data.characterAvatar.size() <= 30 &&
+             data.totalPoints is int && data.totalPoints >= 0 &&
+             data.currentStreak is int && data.currentStreak >= 0 &&
+             (!('lastActiveDate' in data) || (data.lastActiveDate is string && data.lastActiveDate.size() <= 20)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // Grade Progress Validation
+    function isValidGradeProgress(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.gradeId is string && data.gradeId.size() > 0 && data.gradeId.size() <= 40 &&
+             data.levelsCompleted is int && data.levelsCompleted >= 0 &&
+             data.starsEarned is int && data.starsEarned >= 0 &&
+             data.highestScore is int && data.highestScore >= 0 &&
+             data.accuracyRate is int && data.accuracyRate >= 0 && data.accuracyRate <= 100 &&
+             data.speedSecondsAvg is int && data.speedSecondsAvg >= 0 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // Craft Medal Validation
+    function isValidCraftMedal(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.medalId is string && data.medalId.size() > 0 && data.medalId.size() <= 60 &&
+             data.craftName is string && data.craftName.size() > 0 && data.craftName.size() <= 80 &&
+             data.stateOrigin is string && data.stateOrigin.size() > 0 && data.stateOrigin.size() <= 50 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 300 &&
+             data.unlockedAt is timestamp && data.unlockedAt <= request.time;
+    }
+
+    // Session Stat Validation
+    function isValidSessionStat(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.topic is string && data.topic.size() > 0 && data.topic.size() <= 100 &&
+             data.grade is string && data.grade.size() > 0 && data.grade.size() <= 40 &&
+             data.totalQuestions is int && data.totalQuestions >= 0 &&
+             data.correctAnswers is int && data.correctAnswers >= 0 &&
+             data.timeTakenSeconds is int && data.timeTakenSeconds >= 0 &&
+             data.date is string && data.date.size() > 0 && data.date.size() <= 20 &&
+             data.timestamp is timestamp && data.timestamp <= request.time;
+    }
+
+    // State Challenge Validation
+    function isValidStateChallenge(data) {
+      return data.stateId is string && data.stateId.size() > 0 && data.stateId.size() <= 40 &&
+             data.stateName is string && data.stateName.size() > 0 && data.stateName.size() <= 50 &&
+             data.monthlyTargetPoints is int && data.monthlyTargetPoints >= 0 &&
+             data.currentPoints is int && data.currentPoints >= 0 &&
+             data.participantsCount is int && data.participantsCount >= 0 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // User Profile match block
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'lastActiveDate', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'lastActiveDate', 'updatedAt']);
+
+      allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+
+      // Grade Progress Subcollection
+      match /progress/{gradeId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(gradeId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().gradeId == gradeId &&
+                         incoming().keys().hasAll(['userId', 'gradeId', 'levelsCompleted', 'starsEarned', 'highestScore', 'accuracyRate', 'speedSecondsAvg', 'updatedAt']) &&
+                         isValidGradeProgress(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(gradeId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().gradeId == existing().gradeId &&
+                         isValidGradeProgress(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['levelsCompleted', 'starsEarned', 'highestScore', 'accuracyRate', 'speedSecondsAvg', 'updatedAt']);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      }
+
+      // Craft Medal Subcollection
+      match /medals/{medalId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(medalId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().medalId == medalId &&
+                         incoming().keys().hasAll(['userId', 'medalId', 'craftName', 'stateOrigin', 'description', 'unlockedAt']) &&
+                         isValidCraftMedal(incoming());
+
+        allow update: if false; // Medals are immutable once unlocked
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      }
+
+      // Session Stats Subcollection
+      match /session_stats/{sessionId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(sessionId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'topic', 'grade', 'totalQuestions', 'correctAnswers', 'timeTakenSeconds', 'date', 'timestamp']) &&
+                         isValidSessionStat(incoming());
+
+        allow update: if false; // Historical session stats are immutable
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      }
+    }
+
+    // State Challenges Collection (Cooperative challenge)
+    match /state_challenges/{stateId} {
+      allow get: if isSignedIn() && isValidId(stateId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+                       isValidId(stateId) &&
+                       incoming().stateId == stateId &&
+                       incoming().keys().hasAll(['stateId', 'stateName', 'monthlyTargetPoints', 'currentPoints', 'participantsCount', 'updatedAt']) &&
+                       isValidStateChallenge(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(stateId) &&
+                       incoming().stateId == existing().stateId &&
+                       incoming().stateName == existing().stateName &&
+                       incoming().monthlyTargetPoints == existing().monthlyTargetPoints &&
+                       incoming().currentPoints >= existing().currentPoints &&
+                       isValidStateChallenge(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['currentPoints', 'participantsCount', 'updatedAt']);
+
+      allow delete: if false;
+    }
+  }
+}

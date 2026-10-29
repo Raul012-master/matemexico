@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with grade level, Mexican state allegiance, chosen mascot, streak and score.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The Firebase Auth user UID." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "grade": { "type": "string", "description": "SEP grade level e.g. 3_primaria, 1_secundaria." },
+        "selectedState": { "type": "string", "description": "State of Mexico for regional challenges." },
+        "characterAvatar": { "type": "string", "description": "Selected mascot ID (ajolote, xolo, jaguar, quetzal)." },
+        "totalPoints": { "type": "integer", "description": "Total accumulated math points." },
+        "currentStreak": { "type": "integer", "description": "Consecutive days practice streak." },
+        "lastActiveDate": { "type": "string", "description": "YYYY-MM-DD date string of last active session." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp via serverTimestamp." }
+      },
+      "required": ["userId", "displayName", "grade", "selectedState", "characterAvatar", "totalPoints", "currentStreak", "createdAt", "updatedAt"]
+    },
+    "GradeProgress": {
+      "title": "GradeProgress",
+      "description": "Progress tracking for a specific grade level curriculum.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user UID." },
+        "gradeId": { "type": "string", "description": "The grade identifier." },
+        "levelsCompleted": { "type": "integer", "description": "Number of levels completed." },
+        "starsEarned": { "type": "integer", "description": "Total stars earned (0-3 per level)." },
+        "highestScore": { "type": "integer", "description": "Highest score achieved in this grade." },
+        "accuracyRate": { "type": "integer", "description": "Percentage accuracy (0-100)." },
+        "speedSecondsAvg": { "type": "integer", "description": "Average response speed in seconds." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp." }
+      },
+      "required": ["userId", "gradeId", "levelsCompleted", "starsEarned", "highestScore", "accuracyRate", "speedSecondsAvg", "updatedAt"]
+    },
+    "CraftMedal": {
+      "title": "CraftMedal",
+      "description": "Traditional Mexican craft medal unlocked by player achievements.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user UID." },
+        "medalId": { "type": "string", "description": "Medal unique identifier." },
+        "craftName": { "type": "string", "description": "Name of the Mexican artisanal craft." },
+        "stateOrigin": { "type": "string", "description": "Origin state of the craft." },
+        "description": { "type": "string", "description": "Achievement description." },
+        "unlockedAt": { "type": "string", "format": "date-time", "description": "Timestamp when unlocked." }
+      },
+      "required": ["userId", "medalId", "craftName", "stateOrigin", "description", "unlockedAt"]
+    },
+    "SessionStat": {
+      "title": "SessionStat",
+      "description": "Individual game session metrics for parent portal reporting and PDF export.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user UID." },
+        "topic": { "type": "string", "description": "Math topic practiced." },
+        "grade": { "type": "string", "description": "Grade level practiced." },
+        "totalQuestions": { "type": "integer", "description": "Total questions attempted." },
+        "correctAnswers": { "type": "integer", "description": "Total correct answers." },
+        "timeTakenSeconds": { "type": "integer", "description": "Total duration in seconds." },
+        "date": { "type": "string", "description": "YYYY-MM-DD date." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Session timestamp." }
+      },
+      "required": ["userId", "topic", "grade", "totalQuestions", "correctAnswers", "timeTakenSeconds", "date", "timestamp"]
+    },
+    "StateChallenge": {
+      "title": "StateChallenge",
+      "description": "Cooperative monthly challenge stats per Mexican state.",
+      "type": "object",
+      "properties": {
+        "stateId": { "type": "string", "description": "State identifier e.g. jalisco, oaxaca." },
+        "stateName": { "type": "string", "description": "Display name of the state." },
+        "monthlyTargetPoints": { "type": "integer", "description": "Target goal for this state." },
+        "currentPoints": { "type": "integer", "description": "Current points pooled by participants." },
+        "participantsCount": { "type": "integer", "description": "Number of active players from this state." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of last contribution." }
+      },
+      "required": ["stateId", "stateName", "monthlyTargetPoints", "currentPoints", "participantsCount", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private profile of the authenticated user."
+    },
+    "/users/{userId}/progress/{gradeId}": {
+      "schema": { "$ref": "#/entities/GradeProgress" },
+      "description": "Subcollection storing user progress per school grade."
+    },
+    "/users/{userId}/medals/{medalId}": {
+      "schema": { "$ref": "#/entities/CraftMedal" },
+      "description": "Subcollection storing unlocked artisanal craft medals."
+    },
+    "/users/{userId}/session_stats/{sessionId}": {
+      "schema": { "$ref": "#/entities/SessionStat" },
+      "description": "Subcollection storing practice session stats for parent portal and PDF report."
+    },
+    "/state_challenges/{stateId}": {
+      "schema": { "$ref": "#/entities/StateChallenge" },
+      "description": "Community monthly challenge document for each Mexican state."
+    }
+  }
+}
