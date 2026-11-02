@@ -1,12 +1,14 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.app.TimePickerDialog
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,16 +27,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timeline
+import java.util.Locale
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -87,7 +95,7 @@ fun ParentPortalScreen(
   profile: UserProfile,
   sessions: List<SessionStat>,
   medals: List<CraftMedal>,
-  onSignOut: () -> Unit,
+  onSignOut: () -> Unit = {},
   onNavigateBack: () -> Unit = {}
 ) {
   val context = LocalContext.current
@@ -95,8 +103,12 @@ fun ParentPortalScreen(
   var parentAnswer by remember { mutableStateOf("") }
   var parentError by remember { mutableStateOf(false) }
 
-  // Notifications toggle
-  var isNotificationsEnabled by remember { mutableStateOf(true) }
+  // Daily Reminder Settings loaded from preferences
+  val (savedEnabled, savedHour, savedMinute) = remember { NotificationHelper.getReminderPreferences(context) }
+  var isNotificationsEnabled by remember { mutableStateOf(savedEnabled) }
+  var reminderHour by remember { mutableStateOf(savedHour) }
+  var reminderMinute by remember { mutableStateOf(savedMinute) }
+  var showTimePickerDialog by remember { mutableStateOf(false) }
 
   // Permission launcher for POST_NOTIFICATIONS (Android 13+)
   val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -104,11 +116,47 @@ fun ParentPortalScreen(
   ) { isGranted ->
     isNotificationsEnabled = isGranted
     if (isGranted) {
-      NotificationHelper.sendDailyReminder(context, profile.characterAvatar.uppercase())
-      Toast.makeText(context, "¡Recordatorios diarios activados!", Toast.LENGTH_SHORT).show()
+      NotificationHelper.scheduleDailyReminder(context, reminderHour, reminderMinute, profile.characterAvatar.uppercase())
+      Toast.makeText(
+        context,
+        "Recordatorio programado diariamente a las %02d:%02d hrs".format(Locale.getDefault(), reminderHour, reminderMinute),
+        Toast.LENGTH_SHORT
+      ).show()
     } else {
-      Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
+      NotificationHelper.cancelDailyReminder(context)
+      Toast.makeText(context, "Permiso de notificaciones necesario para los avisos diarios", Toast.LENGTH_SHORT).show()
     }
+  }
+
+  fun updateReminderSchedule(hour: Int, minute: Int) {
+    reminderHour = hour
+    reminderMinute = minute
+    isNotificationsEnabled = true
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+      NotificationHelper.scheduleDailyReminder(context, hour, minute, profile.characterAvatar.uppercase())
+      Toast.makeText(
+        context,
+        "Recordatorio programado diariamente a las %02d:%02d hrs".format(Locale.getDefault(), hour, minute),
+        Toast.LENGTH_SHORT
+      ).show()
+    }
+  }
+
+  fun openSystemTimePickerDialog() {
+    val is24 = android.text.format.DateFormat.is24HourFormat(context)
+    val picker = TimePickerDialog(
+      context,
+      { _, h, m ->
+        updateReminderSchedule(h, m)
+      },
+      reminderHour,
+      reminderMinute,
+      is24
+    )
+    picker.setTitle("Elige la hora del recordatorio")
+    picker.show()
   }
 
   Scaffold(
@@ -121,8 +169,8 @@ fun ParentPortalScreen(
         },
         title = {
           Column {
-            Text("Estadísticas y Reporte Escolar 📊", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text("Seguimiento SEP y Constancia PDF Oficial", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+            Text("Estadísticas y Reporte Escolar", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("Seguimiento SEP y Constancia PDF Oficial", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
           }
         },
         actions = {
@@ -147,7 +195,7 @@ fun ParentPortalScreen(
         )
       )
     },
-    containerColor = BackgroundCream
+    containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
     if (!isUnlockedByParent) {
       // Parental Gate Challenge
@@ -191,8 +239,8 @@ fun ParentPortalScreen(
 
         Card(
           shape = RoundedCornerShape(16.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
           modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
         ) {
           Column(
@@ -260,8 +308,8 @@ fun ParentPortalScreen(
         Card(
           modifier = Modifier.fillMaxWidth(),
           shape = RoundedCornerShape(16.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
           Row(
             modifier = Modifier.padding(16.dp),
@@ -339,13 +387,21 @@ fun ParentPortalScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Key Pedagogical Indicators Grid
-        Text(
-          text = "📊 Indicadores de Rendimiento",
-          fontWeight = FontWeight.Bold,
-          fontSize = 16.sp,
-          color = TalaveraBlue
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            imageVector = Icons.Default.Assessment,
+            contentDescription = null,
+            tint = TalaveraBlue,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(
+            text = "Indicadores de Rendimiento",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = TalaveraBlue
+          )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -379,8 +435,8 @@ fun ParentPortalScreen(
         Card(
           modifier = Modifier.fillMaxWidth(),
           shape = RoundedCornerShape(16.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
           Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -407,8 +463,8 @@ fun ParentPortalScreen(
         Card(
           modifier = Modifier.fillMaxWidth(),
           shape = RoundedCornerShape(16.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
           Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -417,11 +473,25 @@ fun ParentPortalScreen(
               verticalAlignment = Alignment.CenterVertically
             ) {
               Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Notifications, contentDescription = null, tint = Cempasuchil)
-                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                  modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Cempasuchil.copy(alpha = 0.15f)),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(Icons.Default.Notifications, contentDescription = null, tint = Cempasuchil, modifier = Modifier.size(22.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                  Text("Recordatorios Diarios", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                  Text("Aviso a las 4:00 PM para practicar", fontSize = 11.sp, color = Color.Gray)
+                  Text("Recordatorios Diarios de Estudio", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                  Text(
+                    if (isNotificationsEnabled) "Activo a las %02d:%02d hrs".format(Locale.getDefault(), reminderHour, reminderMinute)
+                    else "Desactivado",
+                    fontSize = 12.sp,
+                    color = if (isNotificationsEnabled) CactusGreen else Color.Gray,
+                    fontWeight = FontWeight.SemiBold
+                  )
                 }
               }
 
@@ -429,49 +499,224 @@ fun ParentPortalScreen(
                 checked = isNotificationsEnabled,
                 onCheckedChange = { checked ->
                   if (checked) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                      notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                      isNotificationsEnabled = true
-                      NotificationHelper.sendDailyReminder(context, profile.characterAvatar.uppercase())
-                      Toast.makeText(context, "Recordatorio programado", Toast.LENGTH_SHORT).show()
-                    }
+                    updateReminderSchedule(reminderHour, reminderMinute)
                   } else {
                     isNotificationsEnabled = false
+                    NotificationHelper.cancelDailyReminder(context)
+                    Toast.makeText(context, "Recordatorios desactivados", Toast.LENGTH_SHORT).show()
                   }
                 },
                 colors = SwitchDefaults.colors(checkedThumbColor = TalaveraBlue)
               )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            if (isNotificationsEnabled) {
+              Spacer(modifier = Modifier.height(14.dp))
 
-            OutlinedButton(
-              onClick = {
-                NotificationHelper.sendDailyReminder(context, profile.characterAvatar.uppercase())
-                Toast.makeText(context, "Notificación de prueba enviada", Toast.LENGTH_SHORT).show()
-              },
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Text("Enviar notificación de prueba ahora", fontSize = 12.sp)
+              Text(
+                text = "Horario del recordatorio:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.DarkGray
+              )
+
+              Spacer(modifier = Modifier.height(8.dp))
+
+              // Full unrestricted Time Picker Button (System clock: 00:00 - 23:59)
+              Button(
+                onClick = { openSystemTimePickerDialog() },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TalaveraBlue),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .heightIn(min = 48.dp)
+                  .testTag("btn_custom_time_picker")
+              ) {
+                Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                  "Fijar cualquier horario: %02d:%02d hrs (Toca para cambiar)".format(Locale.getDefault(), reminderHour, reminderMinute),
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color.White
+                )
+              }
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              Text(
+                text = "O elige un horario sugerido:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Gray
+              )
+
+              Spacer(modifier = Modifier.height(6.dp))
+
+              // Quick preset hour chips (2x2 grid for generous touch targets)
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                  listOf(Pair(15, 0) to "3:00 PM (Tarde)", Pair(16, 30) to "4:30 PM (Tarea)"),
+                  listOf(Pair(18, 0) to "6:00 PM (Estudio)", Pair(20, 0) to "8:00 PM (Noche)")
+                ).forEach { rowPresets ->
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
+                    rowPresets.forEach { (time, label) ->
+                      val isSelected = reminderHour == time.first && reminderMinute == time.second
+                      Surface(
+                        modifier = Modifier
+                          .weight(1f)
+                          .heightIn(min = 44.dp)
+                          .clip(RoundedCornerShape(10.dp))
+                          .clickable {
+                            updateReminderSchedule(time.first, time.second)
+                          },
+                        color = if (isSelected) TalaveraBlue else Color(0xFFF5F5F5),
+                        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+                      ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                          Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color.DarkGray,
+                            textAlign = TextAlign.Center
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              Surface(
+                color = Color(0xFFE8F5E9),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Row(
+                  modifier = Modifier.padding(10.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(Icons.Default.CheckCircle, contentDescription = null, tint = CactusGreen, modifier = Modifier.size(16.dp))
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text(
+                    text = "Aviso programado automáticamente a las %02d:%02d hrs para mantener la racha de estudio.".format(Locale.getDefault(), reminderHour, reminderMinute),
+                    fontSize = 11.sp,
+                    color = Color(0xFF1B5E20)
+                  )
+                }
+              }
             }
           }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-
-        // Sign Out Button
-        OutlinedButton(
-          onClick = onSignOut,
-          modifier = Modifier.fillMaxWidth(),
-          colors = ButtonDefaults.outlinedButtonColors(contentColor = RosaMexicano)
-        ) {
-          Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Cerrar Sesión")
-        }
       }
     }
+  }
+
+  // DIALOGO PERSONALIZADO DE HORA
+  if (showTimePickerDialog) {
+    var selectedH by remember { mutableStateOf(reminderHour) }
+    var selectedM by remember { mutableStateOf(reminderMinute) }
+
+    AlertDialog(
+      onDismissRequest = { showTimePickerDialog = false },
+      title = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(Icons.Default.Alarm, contentDescription = null, tint = TalaveraBlue)
+          Spacer(modifier = Modifier.width(8.dp))
+          Text("Elegir Hora de Recordatorio", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        }
+      },
+      text = {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+          Text(
+            text = "%02d:%02d hrs".format(Locale.getDefault(), selectedH, selectedM),
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TalaveraBlue,
+            modifier = Modifier.padding(vertical = 12.dp)
+          )
+
+          Text("Hora (formato 24 hrs):", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Hours row selector
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+          ) {
+            listOf(14, 16, 17, 18, 19, 20).forEach { h ->
+              val isSel = selectedH == h
+              Surface(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable { selectedH = h },
+                color = if (isSel) TalaveraBlue else Color(0xFFF0F0F0)
+              ) {
+                Text(
+                  text = "%02d".format(Locale.getDefault(), h),
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 13.sp,
+                  color = if (isSel) Color.White else Color.Black,
+                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(14.dp))
+          Text("Minutos:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Minutes row selector
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+          ) {
+            listOf(0, 15, 30, 45).forEach { m ->
+              val isSel = selectedM == m
+              Surface(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable { selectedM = m },
+                color = if (isSel) Cempasuchil else Color(0xFFF0F0F0)
+              ) {
+                Text(
+                  text = ":%02d".format(Locale.getDefault(), m),
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 13.sp,
+                  color = if (isSel) Color.White else Color.Black,
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            updateReminderSchedule(selectedH, selectedM)
+            showTimePickerDialog = false
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = TalaveraBlue)
+        ) {
+          Text("Guardar Hora")
+        }
+      },
+      dismissButton = {
+        OutlinedButton(onClick = { showTimePickerDialog = false }) {
+          Text("Cancelar")
+        }
+      }
+    )
   }
 }
 
@@ -486,15 +731,15 @@ private fun IndicatorCard(
   Card(
     modifier = modifier,
     shape = RoundedCornerShape(14.dp),
-    colors = CardDefaults.cardColors(containerColor = Color.White),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
   ) {
     Column(modifier = Modifier.padding(12.dp)) {
-      Text(text = title, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+      Text(text = title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
       Spacer(modifier = Modifier.height(4.dp))
       Text(text = value, fontSize = 20.sp, color = accentColor, fontWeight = FontWeight.ExtraBold)
       Spacer(modifier = Modifier.height(2.dp))
-      Text(text = caption, fontSize = 9.sp, color = Color.DarkGray)
+      Text(text = caption, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
   }
 }
@@ -506,7 +751,7 @@ private fun CompetencyBar(title: String, percentage: Int, color: Color) {
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
-      Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF37474F))
+      Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
       Text("$percentage%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color)
     }
     Spacer(modifier = Modifier.height(4.dp))

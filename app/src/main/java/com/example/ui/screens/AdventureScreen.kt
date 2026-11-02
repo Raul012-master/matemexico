@@ -20,11 +20,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Architecture
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,6 +85,7 @@ fun AdventureScreen(
   onSelectLevel: (level: LevelInfo, grade: String) -> Unit,
   onChangeGrade: (newGrade: String) -> Unit,
   onChangeMascot: (newMascot: String) -> Unit,
+  onNavigateToTiendita: () -> Unit = {},
   onNavigateBack: () -> Unit = {}
 ) {
   var showGradeMenu by remember { mutableStateOf(false) }
@@ -104,6 +113,7 @@ fun AdventureScreen(
               mascotId = profile.characterAvatar,
               size = 36.dp,
               borderColor = Color.White,
+              equippedAccessory = profile.equippedAccessory,
               modifier = Modifier.clickable { showMascotDialog = true }
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -136,7 +146,7 @@ fun AdventureScreen(
         )
       )
     },
-    containerColor = BackgroundCream
+    containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
     LazyColumn(
       modifier = Modifier
@@ -149,21 +159,21 @@ fun AdventureScreen(
         Card(
           modifier = Modifier.fillMaxWidth().testTag("grade_selector_card"),
           shape = RoundedCornerShape(18.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
           Column(modifier = Modifier.padding(16.dp)) {
             Text(
               text = "Grado Escolar SEP:",
               fontSize = 12.sp,
-              color = Color.Gray,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
               fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(4.dp))
             Box {
               Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF5F5F5),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                   .fillMaxWidth()
                   .clickable { showGradeMenu = true }
@@ -218,7 +228,13 @@ fun AdventureScreen(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
-            Text(text = currentMascot.emoji, fontSize = 34.sp)
+            MascotAvatar(
+              mascotId = currentMascot.id,
+              size = 48.dp,
+              borderColor = Cempasuchil,
+              borderWidth = 2.dp,
+              equippedAccessory = profile.equippedAccessory
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
               Text(
@@ -237,10 +253,56 @@ fun AdventureScreen(
           }
         }
 
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Banner especial: La Tiendita de Don Pepe
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onNavigateToTiendita() }
+            .testTag("btn_tiendita_adventure_banner"),
+          shape = RoundedCornerShape(16.dp),
+          color = Color(0xFFFFFDE7),
+          border = androidx.compose.foundation.BorderStroke(1.5.dp, MaizGold),
+          shadowElevation = 2.dp
+        ) {
+          Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(MaizGold.copy(alpha = 0.25f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Storefront,
+                contentDescription = null,
+                tint = Color(0xFFE65100),
+                modifier = Modifier.size(24.dp)
+              )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text("Práctica Real: La Tiendita de Don Pepe", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE65100))
+              Text("Cobra en pesos y entrega el cambio exacto a clientes.", fontSize = 11.sp, color = Color.DarkGray)
+            }
+            Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+              contentDescription = null,
+              tint = Color(0xFFE65100),
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-          text = "🗺️ Mapa de Niveles Progresivos",
+          text = "Mapa de Niveles Progresivos SEP",
           fontSize = 18.sp,
           fontWeight = FontWeight.ExtraBold,
           color = TalaveraBlue
@@ -267,9 +329,9 @@ fun AdventureScreen(
               onSelectLevel(level, currentGrade)
             },
           shape = RoundedCornerShape(18.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-          border = if (isCompleted) androidx.compose.foundation.BorderStroke(1.5.dp, CactusGreen) else null
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+          border = if (isCompleted) androidx.compose.foundation.BorderStroke(1.5.dp, CactusGreen) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
           Row(
             modifier = Modifier.padding(16.dp),
@@ -284,7 +346,19 @@ fun AdventureScreen(
                 ),
               contentAlignment = Alignment.Center
             ) {
-              Text(text = level.iconEmoji, fontSize = 26.sp)
+              val levelIcon = when (level.levelNumber % 5) {
+                1 -> Icons.Default.Calculate
+                2 -> Icons.Default.School
+                3 -> Icons.Default.PieChart
+                4 -> Icons.Default.Architecture
+                else -> Icons.Default.AutoStories
+              }
+              Icon(
+                imageVector = levelIcon,
+                contentDescription = level.topic,
+                tint = if (isCompleted) CactusGreen else RosaMexicano,
+                modifier = Modifier.size(28.dp)
+              )
             }
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -340,7 +414,7 @@ fun AdventureScreen(
   if (showMascotDialog) {
     AlertDialog(
       onDismissRequest = { showMascotDialog = false },
-      title = { Text("Elige a tu Compañero Guía 🇲🇽", fontWeight = FontWeight.Bold, color = TalaveraBlue) },
+      title = { Text("Elige a tu Compañero Guía", fontWeight = FontWeight.Bold, color = TalaveraBlue) },
       text = {
         Column {
           CurriculumGenerator.MASCOTS.forEach { mascot ->
@@ -368,8 +442,6 @@ fun AdventureScreen(
                 Column {
                   Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = mascot.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = mascot.emoji, fontSize = 15.sp)
                   }
                   Text(text = getMascotRealAnimalName(mascot.id), fontSize = 11.sp, color = CactusGreen, fontWeight = FontWeight.SemiBold)
                 }

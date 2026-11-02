@@ -109,7 +109,7 @@ fun TimeAttackScreen(
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text("Agilidad Azteca ⚡", fontWeight = FontWeight.Bold) },
+        title = { Text("Agilidad Azteca Contrarreloj", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
         navigationIcon = {
           IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("time_attack_back_button")) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
@@ -140,7 +140,7 @@ fun TimeAttackScreen(
         )
       )
     },
-    containerColor = BackgroundCream
+    containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
     when {
       !isPlaying && !isGameOver -> {
@@ -190,16 +190,16 @@ fun TimeAttackScreen(
           Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
           ) {
             Column(modifier = Modifier.padding(20.dp)) {
               Text(text = "Reglas del Desafío:", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TalaveraBlue)
               Spacer(modifier = Modifier.height(8.dp))
-              Text("• Tienes 60 segundos para resolver el mayor número de problemas.", fontSize = 13.sp, color = Color.DarkGray)
-              Text("• Cada respuesta correcta suma puntos a tu estado.", fontSize = 13.sp, color = Color.DarkGray)
-              Text("• Mantén rachas seguidas para multiplicar tus puntos (x2, x3).", fontSize = 13.sp, color = Color.DarkGray)
-              Text("• Preguntas adaptadas al currículo SEP de tu grado escolar.", fontSize = 13.sp, color = Color.DarkGray)
+              Text("• Tienes 60 segundos para resolver el mayor número de problemas.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text("• Cada respuesta correcta suma puntos a tu estado.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text("• Mantén rachas seguidas para multiplicar tus puntos (x2, x3).", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text("• Preguntas adaptadas al currículo SEP de tu grado escolar.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
           }
 
@@ -241,7 +241,12 @@ fun TimeAttackScreen(
           horizontalAlignment = Alignment.CenterHorizontally,
           verticalArrangement = Arrangement.Center
         ) {
-          Text("⚡", fontSize = 54.sp)
+          Icon(
+            imageVector = Icons.Default.ElectricBolt,
+            contentDescription = null,
+            tint = MaizGold,
+            modifier = Modifier.size(54.dp)
+          )
           Text(
             text = "¡Tiempo Agotado!",
             fontSize = 28.sp,
@@ -259,8 +264,8 @@ fun TimeAttackScreen(
           Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
           ) {
             Column(modifier = Modifier.padding(20.dp)) {
               Row(
@@ -352,8 +357,8 @@ fun TimeAttackScreen(
             Card(
               modifier = Modifier.fillMaxWidth(),
               shape = RoundedCornerShape(20.dp),
-              colors = CardDefaults.cardColors(containerColor = Color.White),
-              elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+              elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
               Column(modifier = Modifier.padding(20.dp)) {
                 Surface(
@@ -361,7 +366,7 @@ fun TimeAttackScreen(
                   shape = RoundedCornerShape(12.dp)
                 ) {
                   Text(
-                    text = "🇲🇽 ${currentQ.culturalTag}",
+                    text = currentQ.culturalTag,
                     color = RosaMexicano,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,

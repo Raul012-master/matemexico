@@ -48,7 +48,7 @@ object NotificationHelper {
 
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_dialog_info)
-      .setContentTitle("¡Hora de tu reto matemático en MateMéxico! 🇲🇽")
+      .setContentTitle("¡Hora de tu reto matemático en MateMéxico!")
       .setContentText("$mascotName te espera para practicar y ganar medallas tradicionales.")
       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
       .setContentIntent(pendingIntent)
@@ -85,14 +85,22 @@ object NotificationHelper {
     }
 
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (alarmManager.canScheduleExactAlarms()) {
+          alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        } else {
+          alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        }
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
       } else {
         alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
       }
     } catch (_: SecurityException) {
-      alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-    }
+      try {
+        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+      } catch (_: Exception) {}
+    } catch (_: Exception) {}
 
     saveReminderPreferences(context, enabled = true, hour = hour, minute = minute)
   }

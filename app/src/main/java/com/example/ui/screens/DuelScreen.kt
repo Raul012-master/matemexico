@@ -28,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -139,7 +140,7 @@ fun DuelScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(BackgroundCream)
+      .background(MaterialTheme.colorScheme.background)
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
       // Top Half: Player 2 (Rotated 180 degrees so player sitting opposite can read)
@@ -153,7 +154,7 @@ fun DuelScreen(
       ) {
         PlayerZone(
           playerNumber = 2,
-          playerName = "Jugador 2 (Águila 🦅)",
+          playerName = "Jugador 2 (Águila)",
           score = p2Score,
           targetScore = targetScore,
           primaryColor = RosaMexicano,
@@ -187,7 +188,7 @@ fun DuelScreen(
           }
 
           Text(
-            text = "⚡ DUELO MATEMÁTICO SEP (Meta: $targetScore pts)",
+            text = "DUELO MATEMÁTICO SEP (Meta: $targetScore pts)",
             color = Color.White,
             fontWeight = FontWeight.Black,
             fontSize = 12.sp,
@@ -213,7 +214,7 @@ fun DuelScreen(
       ) {
         PlayerZone(
           playerNumber = 1,
-          playerName = "Jugador 1 (Jaguar 🐆)",
+          playerName = "Jugador 1 (Jaguar)",
           score = p1Score,
           targetScore = targetScore,
           primaryColor = JadeMaya,
@@ -238,7 +239,7 @@ fun DuelScreen(
           .padding(24.dp)
           .shadow(16.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
       ) {
         Column(
           modifier = Modifier.padding(24.dp),
@@ -262,7 +263,7 @@ fun DuelScreen(
           Spacer(modifier = Modifier.height(16.dp))
 
           Text(
-            text = if (winner == 1) "¡Victoria del Jugador 1! 🐆" else "¡Victoria del Jugador 2! 🦅",
+            text = if (winner == 1) "¡Victoria del Jugador 1 (Jaguar)!" else "¡Victoria del Jugador 2 (Águila)!",
             fontWeight = FontWeight.Black,
             fontSize = 20.sp,
             color = if (winner == 1) JadeMaya else RosaMexicano,
@@ -304,7 +305,7 @@ fun DuelScreen(
                 containerColor = if (winner == 1) JadeMaya else RosaMexicano
               )
             ) {
-              Text("Revancha ⚡", fontWeight = FontWeight.Bold)
+              Text("Revancha", fontWeight = FontWeight.Bold)
             }
           }
         }
@@ -368,7 +369,7 @@ private fun PlayerZone(
       modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 4.dp),
-      colors = CardDefaults.cardColors(containerColor = Color.White),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
       shape = RoundedCornerShape(14.dp),
       elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -382,7 +383,7 @@ private fun PlayerZone(
           text = question.prompt,
           fontSize = 15.sp,
           fontWeight = FontWeight.Bold,
-          color = Color(0xFF212121),
+          color = MaterialTheme.colorScheme.onSurface,
           textAlign = TextAlign.Center,
           maxLines = 2
         )

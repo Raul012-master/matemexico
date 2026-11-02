@@ -48,9 +48,38 @@ object CurriculumGenerator {
   )
 
   val MEXICAN_STATES = listOf(
-    "CDMX", "Jalisco", "Oaxaca", "Puebla", "Nuevo León",
-    "Yucatán", "Veracruz", "Michoacán", "Guanajuato", "Chiapas",
-    "Estado de México", "Querétaro"
+    "Aguascalientes",
+    "Baja California",
+    "Baja California Sur",
+    "Campeche",
+    "Chiapas",
+    "Chihuahua",
+    "Ciudad de México",
+    "Coahuila",
+    "Colima",
+    "Durango",
+    "Estado de México",
+    "Guanajuato",
+    "Guerrero",
+    "Hidalgo",
+    "Jalisco",
+    "Michoacán",
+    "Morelos",
+    "Nayarit",
+    "Nuevo León",
+    "Oaxaca",
+    "Puebla",
+    "Querétaro",
+    "Quintana Roo",
+    "San Luis Potosí",
+    "Sinaloa",
+    "Sonora",
+    "Tabasco",
+    "Tamaulipas",
+    "Tlaxcala",
+    "Veracruz",
+    "Yucatán",
+    "Zacatecas"
   )
 
   val CRAFT_MEDALS_CATALOG = listOf(
@@ -461,21 +490,21 @@ object CurriculumGenerator {
     if (question.hint.isNotBlank()) return question.hint
     return when {
       question.prompt.contains("compraron en total", ignoreCase = true) || question.prompt.contains("juntaron", ignoreCase = true) ->
-        "💡 Consejo: Cuando te preguntan por el total de dos cantidades que se unen, la operación adecuada es una suma (+)."
+        "Consejo: Cuando te preguntan por el total de dos cantidades que se unen, la operación adecuada es una suma (+)."
       question.prompt.contains("quedan", ignoreCase = true) || question.prompt.contains("cambio", ignoreCase = true) || question.prompt.contains("diferencia", ignoreCase = true) ->
-        "💡 Consejo: Para saber cuánto sobra o la diferencia, resta (-) la cantidad gastada o apartada del total original."
+        "Consejo: Para saber cuánto sobra o la diferencia, resta (-) la cantidad gastada o apartada del total original."
       question.prompt.contains("cajas", ignoreCase = true) || question.prompt.contains("paquetes", ignoreCase = true) || question.prompt.contains("cada uno", ignoreCase = true) ->
-        "💡 Consejo: Si varios paquetes tienen la misma cantidad de objetos, multiplica (×) el número de paquetes por las piezas de cada uno."
+        "Consejo: Si varios paquetes tienen la misma cantidad de objetos, multiplica (×) el número de paquetes por las piezas de cada uno."
       question.prompt.contains("repartir", ignoreCase = true) || question.prompt.contains("partes iguales", ignoreCase = true) ->
-        "💡 Consejo: Repartir equitativamente en partes iguales equivale a una división (÷)."
+        "Consejo: Repartir equitativamente en partes iguales equivale a una división (÷)."
       question.prompt.contains("fracción", ignoreCase = true) || question.prompt.contains("/", ignoreCase = true) ->
-        "💡 Consejo: Recuerda que el denominador (abajo) indica en cuántas partes se divide el entero y el numerador (arriba) cuántas tomas."
+        "Consejo: Recuerda que el denominador (abajo) indica en cuántas partes se divide el entero y el numerador (arriba) cuántas tomas."
       question.prompt.contains("área", ignoreCase = true) ->
-        "💡 Consejo: Para rectángulos y cuadrados, multiplica la base por la altura (b × h)."
+        "Consejo: Para rectángulos y cuadrados, multiplica la base por la altura (b × h)."
       question.prompt.contains("perímetro", ignoreCase = true) ->
-        "💡 Consejo: El perímetro es la suma de todos los lados que rodean la figura."
+        "Consejo: El perímetro es la suma de todos los lados que rodean la figura."
       else ->
-        "💡 Consejo: Lee con calma los datos del problema, identifica la incógnita y descarta las respuestas ilógicas."
+        "Consejo: Lee con calma los datos del problema, identifica la incógnita y descarta las respuestas ilógicas."
     }
   }
 
@@ -564,14 +593,14 @@ object CurriculumGenerator {
       q.copy(
         id = "daily_${idx}",
         title = "Desafío del Tianguis #${idx + 1}",
-        culturalTag = "Reto del Día 🇲🇽",
+        culturalTag = "Reto del Día",
         hint = when (grade) {
-          "1_primaria" -> "💡 Pista: Cuenta con tus dedos o agrupa las frutas en grupos de 5."
-          "2_primaria" -> "💡 Pista: Si es una resta, piensa cuánto le falta al número menor para llegar al mayor."
-          "3_primaria" -> "💡 Pista: Recuerda la tabla de multiplicar correspondiente o descompón en decenas."
-          "4_primaria" -> "💡 Pista: Para sumar fracciones con mismo denominador, sólo suma los numeradores."
-          "5_primaria" -> "💡 Pista: El 10% de una cantidad se calcula dividiendo entre 10."
-          else -> "💡 Pista: Despeja la variable pasando los términos al otro lado con signo contrario."
+          "1_primaria" -> "Pista: Cuenta con tus dedos o agrupa las frutas en grupos de 5."
+          "2_primaria" -> "Pista: Si es una resta, piensa cuánto le falta al número menor para llegar al mayor."
+          "3_primaria" -> "Pista: Recuerda la tabla de multiplicar correspondiente o descompón en decenas."
+          "4_primaria" -> "Pista: Para sumar fracciones con mismo denominador, sólo suma los numeradores."
+          "5_primaria" -> "Pista: El 10% de una cantidad se calcula dividiendo entre 10."
+          else -> "Pista: Despeja la variable pasando los términos al otro lado con signo contrario."
         }
       )
     }
@@ -588,9 +617,9 @@ object CurriculumGenerator {
     }
     val shuffled = newOptions.shuffled()
     val hintText = if (hint.isNotEmpty()) hint else when (grade) {
-      "1_primaria", "2_primaria" -> "💡 Pista: Agrupa las cantidades o usa la recta numérica mentalmente."
-      "3_primaria", "4_primaria" -> "💡 Pista: Observa el patrón de las operaciones y las unidades finales."
-      else -> "💡 Pista: Recuerda el orden de las operaciones (jerarquía de operaciones)."
+      "1_primaria", "2_primaria" -> "Pista: Agrupa las cantidades o usa la recta numérica mentalmente."
+      "3_primaria", "4_primaria" -> "Pista: Observa el patrón de las operaciones y las unidades finales."
+      else -> "Pista: Recuerda el orden de las operaciones (jerarquía de operaciones)."
     }
     return this.copy(
       options = shuffled,

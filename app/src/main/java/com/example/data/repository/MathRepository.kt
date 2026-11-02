@@ -6,6 +6,8 @@ import com.example.data.model.CraftMedal
 import com.example.data.model.GradeProgress
 import com.example.data.model.SessionStat
 import com.example.data.model.StateChallenge
+import com.example.data.model.StoreCategory
+import com.example.data.model.StoreItem
 import com.example.data.model.UserProfile
 import com.example.data.util.OperationType
 import com.example.data.util.handleFirestoreError
@@ -71,6 +73,14 @@ class MathRepository(private val db: FirebaseFirestore) {
           "totalPoints" to profile.totalPoints,
           "currentStreak" to profile.currentStreak,
           "lastActiveDate" to profile.lastActiveDate,
+          "lastDailyChallengeDate" to profile.lastDailyChallengeDate,
+          "equippedAccessory" to profile.equippedAccessory,
+          "equippedTitle" to profile.equippedTitle,
+          "unlockedItems" to profile.unlockedItems,
+          "powerUp5050Count" to profile.powerUp5050Count,
+          "powerUpExtraTimeCount" to profile.powerUpExtraTimeCount,
+          "powerUpStreakShieldCount" to profile.powerUpStreakShieldCount,
+          "powerUpDoublePointsCount" to profile.powerUpDoublePointsCount,
           "createdAt" to FieldValue.serverTimestamp(),
           "updatedAt" to FieldValue.serverTimestamp()
         )
@@ -84,6 +94,14 @@ class MathRepository(private val db: FirebaseFirestore) {
           "totalPoints" to profile.totalPoints,
           "currentStreak" to profile.currentStreak,
           "lastActiveDate" to profile.lastActiveDate,
+          "lastDailyChallengeDate" to profile.lastDailyChallengeDate,
+          "equippedAccessory" to profile.equippedAccessory,
+          "equippedTitle" to profile.equippedTitle,
+          "unlockedItems" to profile.unlockedItems,
+          "powerUp5050Count" to profile.powerUp5050Count,
+          "powerUpExtraTimeCount" to profile.powerUpExtraTimeCount,
+          "powerUpStreakShieldCount" to profile.powerUpStreakShieldCount,
+          "powerUpDoublePointsCount" to profile.powerUpDoublePointsCount,
           "updatedAt" to FieldValue.serverTimestamp()
         )
         docRef.update(payload).await()
@@ -259,6 +277,7 @@ class MathRepository(private val db: FirebaseFirestore) {
         val initialPointsMap = mapOf(
           "Oaxaca" to 14250L,
           "Jalisco" to 12800L,
+          "Ciudad de México" to 18900L,
           "CDMX" to 18900L,
           "Puebla" to 10500L,
           "Nuevo León" to 11200L,
@@ -289,5 +308,63 @@ class MathRepository(private val db: FirebaseFirestore) {
       if (e is CancellationException) throw e
       handleFirestoreError(e, OperationType.WRITE, "state_challenges")
     }
+  }
+
+  // Delete all user account data (Right to Erasure / ARCO)
+  suspend fun deleteUserAccountAndData(userId: String) {
+    try {
+      db.collection("users").document(userId).delete().await()
+
+      val progressDocs = db.collection("users").document(userId).collection("progress").get().await()
+      for (doc in progressDocs.documents) {
+        doc.reference.delete().await()
+      }
+
+      val medalDocs = db.collection("users").document(userId).collection("medals").get().await()
+      for (doc in medalDocs.documents) {
+        doc.reference.delete().await()
+      }
+
+      val sessionDocs = db.collection("users").document(userId).collection("session_stats").get().await()
+      for (doc in sessionDocs.documents) {
+        doc.reference.delete().await()
+      }
+
+      try {
+        auth.currentUser?.delete()?.await()
+      } catch (_: Exception) {}
+    } catch (e: Exception) {
+      if (e is CancellationException) throw e
+      handleFirestoreError(e, OperationType.DELETE, "users/$userId")
+    }
+  }
+
+  // Comprar artículo de la tienda y actualizar perfil
+  suspend fun purchaseStoreItem(userId: String, profile: UserProfile, item: StoreItem): UserProfile {
+    require(profile.totalPoints >= item.price) { "Puntos insuficientes" }
+    val newPoints = profile.totalPoints - item.price
+    val updatedProfile = when (item.id) {
+      "powerup_5050" -> profile.copy(totalPoints = newPoints, powerUp5050Count = profile.powerUp5050Count + 1L)
+      "powerup_extra_time" -> profile.copy(totalPoints = newPoints, powerUpExtraTimeCount = profile.powerUpExtraTimeCount + 1L)
+      "powerup_shield" -> profile.copy(totalPoints = newPoints, powerUpStreakShieldCount = profile.powerUpStreakShieldCount + 1L)
+      "powerup_double" -> profile.copy(totalPoints = newPoints, powerUpDoublePointsCount = profile.powerUpDoublePointsCount + 1L)
+      else -> {
+        val newUnlocked = if (!profile.unlockedItems.contains(item.id)) profile.unlockedItems + item.id else profile.unlockedItems
+        profile.copy(totalPoints = newPoints, unlockedItems = newUnlocked)
+      }
+    }
+    saveUserProfile(updatedProfile)
+    return updatedProfile
+  }
+
+  // Equipar accesorio o título adquirido
+  suspend fun equipStoreItem(userId: String, profile: UserProfile, item: StoreItem): UserProfile {
+    val updatedProfile = when (item.category) {
+      StoreCategory.ACCESORIOS -> profile.copy(equippedAccessory = if (profile.equippedAccessory == item.id) "none" else item.id)
+      StoreCategory.TITULOS -> profile.copy(equippedTitle = if (profile.equippedTitle == item.id) "none" else item.id)
+      else -> profile
+    }
+    saveUserProfile(updatedProfile)
+    return updatedProfile
   }
 }

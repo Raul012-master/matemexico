@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -9,11 +11,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,21 +27,33 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,14 +64,21 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.example.data.model.StoreCatalog
+import com.example.data.model.StoreCategory
+import com.example.data.model.StoreItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,6 +89,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -94,9 +118,15 @@ fun ProfileScreen(
   profile: UserProfile,
   unlockedMedalsCount: Int,
   isOffline: Boolean,
+  themeMode: String = "system",
+  onUpdateThemeMode: (String) -> Unit = {},
   onUpdateGrade: (String) -> Unit,
   onUpdateState: (String) -> Unit,
   onUpdateMascot: (String) -> Unit,
+  onEquipItem: (StoreItem) -> Unit = {},
+  onNavigateToStore: () -> Unit = {},
+  onNavigateToLegalTerms: () -> Unit = {},
+  onDeleteAccount: () -> Unit = {},
   onNavigateBack: () -> Unit,
   onSignOut: () -> Unit
 ) {
@@ -105,10 +135,11 @@ fun ProfileScreen(
   }
 
   var showSignOutDialog by remember { mutableStateOf(false) }
+  var showDeleteAccountDialog by remember { mutableStateOf(false) }
   var showGradeDialog by remember { mutableStateOf(false) }
   var showStateDialog by remember { mutableStateOf(false) }
   var showMascotDialog by remember { mutableStateOf(false) }
-  var isLegalExpanded by remember { mutableStateOf(false) }
+  var showWardrobeDialog by remember { mutableStateOf(false) }
 
   val currentMascot = remember(profile.characterAvatar) {
     CurriculumGenerator.MASCOTS.find { it.id == profile.characterAvatar }
@@ -143,10 +174,10 @@ fun ProfileScreen(
             )
           }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
       )
     },
-    containerColor = BackgroundCream
+    containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
     Column(
       modifier = Modifier
@@ -162,8 +193,8 @@ fun ProfileScreen(
           .fillMaxWidth()
           .testTag("card_student_profile_header"),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
       ) {
         Column(
           modifier = Modifier
@@ -177,7 +208,7 @@ fun ProfileScreen(
               .size(116.dp)
               .shadow(8.dp, CircleShape)
               .clip(CircleShape)
-              .background(Color.White)
+              .background(MaterialTheme.colorScheme.surface)
               .border(
                 4.dp,
                 Brush.sweepGradient(listOf(RosaMexicano, Cempasuchil, TalaveraBlue, JadeMaya, RosaMexicano)),
@@ -187,11 +218,12 @@ fun ProfileScreen(
               .testTag("btn_change_avatar_mascot"),
             contentAlignment = Alignment.Center
           ) {
-            Image(
-              painter = painterResource(id = getMascotDrawable(profile.characterAvatar)),
-              contentDescription = currentMascot.name,
-              modifier = Modifier.size(108.dp).clip(CircleShape),
-              contentScale = ContentScale.Crop
+            MascotAvatar(
+              mascotId = profile.characterAvatar,
+              size = 110.dp,
+              borderColor = RosaMexicano,
+              borderWidth = 3.dp,
+              equippedAccessory = profile.equippedAccessory
             )
             // Badging de edición
             Surface(
@@ -215,8 +247,25 @@ fun ProfileScreen(
             text = if (profile.displayName.isNotBlank()) profile.displayName else "Estudiante MateMéxico",
             fontSize = 22.sp,
             fontWeight = FontWeight.Black,
-            color = Color(0xFF1E293B)
+            color = MaterialTheme.colorScheme.onSurface
           )
+
+          if (profile.equippedTitle != "none") {
+            val titleObj = com.example.data.model.StoreCatalog.ITEMS.find { it.id == profile.equippedTitle }
+            Surface(
+              color = MaizGold.copy(alpha = 0.2f),
+              shape = RoundedCornerShape(8.dp),
+              modifier = Modifier.padding(top = 4.dp)
+            ) {
+              Text(
+                text = titleObj?.name ?: profile.equippedTitle,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFFE65100),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
 
           // Mascota y Animal Real de México
           Surface(
@@ -231,7 +280,7 @@ fun ProfileScreen(
               horizontalAlignment = Alignment.CenterHorizontally
             ) {
               Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = currentMascot.emoji, fontSize = 16.sp)
+                MascotAvatar(mascotId = currentMascot.id, size = 20.dp, borderColor = RosaMexicano, borderWidth = 1.dp)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                   text = currentMascot.name,
@@ -272,7 +321,7 @@ fun ProfileScreen(
               )
               Spacer(modifier = Modifier.width(6.dp))
               Text(
-                text = if (isOffline) "Modo Explorador Escolar 🎒" else "Cuenta de Estudiante Activa 🌟",
+                text = if (isOffline) "Modo Explorador Escolar" else "Cuenta de Estudiante Activa",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isOffline) Color(0xFFE65100) else Color(0xFF1B5E20)
@@ -299,7 +348,7 @@ fun ProfileScreen(
         )
         ProfileStatCard(
           title = "Racha Días",
-          value = "${profile.currentStreak} 🔥",
+          value = "${profile.currentStreak}",
           icon = Icons.Default.LocalFireDepartment,
           iconTint = Cempasuchil,
           backgroundColor = Color(0xFFFFF3E0),
@@ -313,6 +362,132 @@ fun ProfileScreen(
           backgroundColor = Color(0xFFE1F5FE),
           modifier = Modifier.weight(1f)
         )
+      }
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // Tarjeta de Armario y Cosméticos de tu Mascota
+      val equippedAccObj = remember(profile.equippedAccessory) {
+        StoreCatalog.ITEMS.find { it.id == profile.equippedAccessory }
+      }
+      val equippedTitleObj = remember(profile.equippedTitle) {
+        StoreCatalog.ITEMS.find { it.id == profile.equippedTitle }
+      }
+
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(16.dp))
+          .clickable { showWardrobeDialog = true }
+          .testTag("btn_profile_open_wardrobe"),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, RosaMexicano.copy(alpha = 0.5f))
+      ) {
+        Row(
+          modifier = Modifier.padding(14.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Box(
+            modifier = Modifier
+              .size(46.dp)
+              .clip(CircleShape)
+              .background(RosaMexicano.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Checkroom,
+              contentDescription = null,
+              tint = RosaMexicano,
+              modifier = Modifier.size(24.dp)
+            )
+          }
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Armario de Cosméticos y Títulos",
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            val accLabel = equippedAccObj?.name ?: "Sin accesorio"
+            val titleLabel = equippedTitleObj?.name ?: "Sin título"
+            Text(
+              text = "Accesorio: $accLabel • Título: $titleLabel",
+              fontSize = 11.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+          Spacer(modifier = Modifier.width(6.dp))
+          Surface(
+            color = RosaMexicano.copy(alpha = 0.12f),
+            shape = RoundedCornerShape(8.dp)
+          ) {
+            Text(
+              text = "Gestionar",
+              color = RosaMexicano,
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Tarjeta de Acceso al Mercadito
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(16.dp))
+          .clickable { onNavigateToStore() }
+          .testTag("btn_profile_open_store"),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Cempasuchil.copy(alpha = 0.5f))
+      ) {
+        Row(
+          modifier = Modifier.padding(14.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Box(
+            modifier = Modifier
+              .size(46.dp)
+              .clip(CircleShape)
+              .background(Cempasuchil.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Storefront,
+              contentDescription = null,
+              tint = Cempasuchil,
+              modifier = Modifier.size(24.dp)
+            )
+          }
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Mercadito de Recompensas",
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+              text = "Tienes ${profile.totalPoints} pts • Canjea poderes, accesorios y títulos.",
+              fontSize = 11.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            tint = Cempasuchil,
+            modifier = Modifier.size(20.dp)
+          )
+        }
       }
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -329,8 +504,8 @@ fun ProfileScreen(
       ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
           // Selector de Grado
@@ -346,20 +521,20 @@ fun ProfileScreen(
               modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(TalaveraBlue.copy(alpha = 0.12f)),
+                .background(TalaveraBlue.copy(alpha = 0.15f)),
               contentAlignment = Alignment.Center
             ) {
               Icon(Icons.Default.School, contentDescription = null, tint = TalaveraBlue, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-              Text("Grado Escolar SEP", fontSize = 12.sp, color = Color.Gray)
-              Text(currentGradeLabel, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+              Text("Grado Escolar SEP", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text(currentGradeLabel, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             }
             Icon(Icons.Default.Edit, contentDescription = "Editar Grado", tint = TalaveraBlue, modifier = Modifier.size(18.dp))
           }
 
-          HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFFEEEEEE))
+          HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
           // Selector de Estado
           Row(
@@ -374,15 +549,15 @@ fun ProfileScreen(
               modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(JadeMaya.copy(alpha = 0.12f)),
+                .background(JadeMaya.copy(alpha = 0.15f)),
               contentAlignment = Alignment.Center
             ) {
               Icon(Icons.Default.LocationOn, contentDescription = null, tint = JadeMaya, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-              Text("Estado de la República", fontSize = 12.sp, color = Color.Gray)
-              Text("Representas a: ${profile.selectedState} 🇲🇽", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+              Text("Estado de la República", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text("Representas a: ${profile.selectedState}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             }
             Icon(Icons.Default.Edit, contentDescription = "Editar Estado", tint = JadeMaya, modifier = Modifier.size(18.dp))
           }
@@ -391,7 +566,113 @@ fun ProfileScreen(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // 4. Términos Legales y Aviso de Privacidad (LGDNNA & COPPA)
+      // 4. Configuración de Apariencia y Tema (Modo Claro / Modo Oscuro)
+      Text(
+        text = "APARIENCIA Y TEMA VISUAL",
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+      )
+
+      ElevatedCard(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("card_theme_settings"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+              modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Cempasuchil.copy(alpha = 0.15f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(Icons.Default.Palette, contentDescription = null, tint = Cempasuchil, modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+              Text(
+                text = "Tono de la Aplicación",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+              )
+              Text(
+                text = "Elige entre luz de día o noche prehispánica",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(14.dp))
+
+          // Segmented Theme Selector
+          val themeOptions = listOf(
+            Triple("light", "Modo Claro", Icons.Default.LightMode),
+            Triple("dark", "Modo Oscuro", Icons.Default.DarkMode),
+            Triple("system", "Automático", Icons.Default.SettingsBrightness)
+          )
+
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            themeOptions.forEach { (mode, label, icon) ->
+              val isSelected = themeMode == mode
+              Surface(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(12.dp))
+                  .clickable { onUpdateThemeMode(mode) }
+                  .testTag("theme_option_$mode"),
+                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                  if (isSelected) 1.5.dp else 1.dp,
+                  if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                )
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                      imageVector = icon,
+                      contentDescription = null,
+                      tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                      modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                      text = label,
+                      fontSize = 14.sp,
+                      fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                      color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                  }
+                  if (isSelected) {
+                    Icon(
+                      imageVector = Icons.Default.Check,
+                      contentDescription = "Seleccionado",
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(18.dp)
+                    )
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // 5. Términos Legales, Privacidad y Derechos ARCO
       Text(
         text = "SEGURIDAD Y MARCO LEGAL",
         fontSize = 12.sp,
@@ -403,86 +684,136 @@ fun ProfileScreen(
       ElevatedCard(
         modifier = Modifier
           .fillMaxWidth()
-          .testTag("card_legal_terms"),
+          .clip(RoundedCornerShape(20.dp))
+          .clickable { onNavigateToLegalTerms() }
+          .testTag("card_legal_terms_nav"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+      ) {
+        Row(
+          modifier = Modifier.padding(16.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Box(
+              modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(TalaveraBlue.copy(alpha = 0.15f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(Icons.Default.Shield, contentDescription = null, tint = TalaveraBlue, modifier = Modifier.size(22.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+              Text(
+                text = "Términos, Privacidad y Derechos ARCO",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+              )
+              Text(
+                text = "Toca para ver el documento legal oficial completo",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+          Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Ver términos", tint = TalaveraBlue, modifier = Modifier.size(20.dp))
+        }
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // 6. Autoría y Marca de Desarrollo del Proyecto
+      Text(
+        text = "DESARROLLO Y AUTORÍA DEL PROYECTO",
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.Gray,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+      )
+
+      ElevatedCard(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("card_developer_branding"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { isLegalExpanded = !isLegalExpanded }
-              .testTag("btn_toggle_legal_terms"),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Box(
-                modifier = Modifier
-                  .size(38.dp)
-                  .clip(CircleShape)
-                  .background(Color(0xFFE8EAF6)),
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(Icons.Default.Shield, contentDescription = null, tint = Color(0xFF3F51B5), modifier = Modifier.size(20.dp))
-              }
-              Spacer(modifier = Modifier.width(12.dp))
-              Column {
-                Text(
-                  text = "Términos Legales y Privacidad",
-                  fontSize = 15.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color(0xFF1E293B)
-                )
-                Text(
-                  text = "Protección de datos de menores (LGDNNA)",
-                  fontSize = 12.sp,
-                  color = Color.Gray
-                )
-              }
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+              modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Code,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(26.dp)
+              )
             }
-            Icon(
-              imageVector = if (isLegalExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-              contentDescription = if (isLegalExpanded) "Colapsar" else "Expandir",
-              tint = Color.Gray
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+              Text(
+                text = "Juan Ramón Moreno Bravo",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+              )
+              Text(
+                text = "Creador y Desarrollador de MateMéxico (Juan BV)",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+              )
+            }
           }
 
-          AnimatedVisibility(visible = isLegalExpanded) {
-            Column(
-              modifier = Modifier
-                .padding(top = 14.dp)
-                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                .padding(14.dp)
-            ) {
-              LegalPointItem(
-                title = "1. Cumplimiento con LGDNNA & COPPA",
-                content = "MateMéxico cumple rigurosamente con la Ley General de los Derechos de Niñas, Niños y Adolescentes y estándares de protección infantil. No se almacenan datos personales sensibles de menores de edad."
-              )
-              Spacer(modifier = Modifier.height(10.dp))
-              LegalPointItem(
-                title = "2. Enfoque 100% Pedagógico Gratuito",
-                content = "La aplicación está diseñada como herramienta lúdica de apoyo al currículo de matemáticas de educación básica de la SEP. No contiene compras integradas ni publicidad intrusiva."
-              )
-              Spacer(modifier = Modifier.height(10.dp))
-              LegalPointItem(
-                title = "3. Privacidad y Seguridad Escolar",
-                content = "Los progresos, medallas y puntuaciones se guardan de forma cifrada en almacenamiento seguro escolar mediante reglas de protección infantil vinculadas a la identidad autorizada por los tutores."
-              )
-              Spacer(modifier = Modifier.height(10.dp))
-              LegalPointItem(
-                title = "4. Derechos ARCO y Supresión de Cuenta",
-                content = "Cualquier tutor legal puede solicitar en cualquier momento la consulta, rectificación o eliminación total de los registros del estudiante cerrando su sesión y solicitando el borrado de sus datos escolares."
-              )
-            }
+          Spacer(modifier = Modifier.height(12.dp))
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Text(
+            text = "MateMéxico es una iniciativa integral de ingeniería de software y gamificación educativa concebida y desarrollada por Juan Ramón Moreno Bravo (Juan BV) para impulsar el cálculo mental, la resolución de problemas y la identidad cultural de la niñez y juventud en los 32 estados de México.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 17.sp
+          )
+
+          Spacer(modifier = Modifier.height(14.dp))
+
+          // Botón directo a LinkedIn de Juan Ramón Moreno Bravo
+          val context = LocalContext.current
+          Button(
+            onClick = {
+              val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.linkedin.com/in/juan-ramon-moreno-bravo-0830b1271"))
+              try { context.startActivity(intent) } catch (_: Exception) {}
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A66C2)),
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(46.dp)
+              .testTag("btn_linkedin_juan_bv")
+          ) {
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "LinkedIn", modifier = Modifier.size(16.dp), tint = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Ver Perfil en LinkedIn ↗", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
           }
         }
       }
 
       Spacer(modifier = Modifier.height(24.dp))
 
-      // 5. Botón de Cerrar Sesión (Destacado y Seguro)
+      // 7. Botón de Cerrar Sesión
       Button(
         onClick = { showSignOutDialog = true },
         shape = RoundedCornerShape(16.dp),
@@ -493,7 +824,7 @@ fun ProfileScreen(
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
         modifier = Modifier
           .fillMaxWidth()
-          .height(54.dp)
+          .height(52.dp)
           .testTag("btn_profile_sign_out")
       ) {
         Icon(
@@ -504,9 +835,29 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.width(10.dp))
         Text(
           text = if (isOffline) "Salir de Modo Invitado / Iniciar Sesión" else "Cerrar Sesión Segura",
-          fontSize = 15.sp,
+          fontSize = 14.sp,
           fontWeight = FontWeight.Bold
         )
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // 8. Botón de Eliminar Cuenta y Datos (Derechos ARCO)
+      OutlinedButton(
+        onClick = { showDeleteAccountDialog = true },
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+          contentColor = Color(0xFFD32F2F)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFEF9A9A)),
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(50.dp)
+          .testTag("btn_delete_account")
+      ) {
+        Icon(Icons.Default.DeleteForever, contentDescription = "Eliminar Cuenta", modifier = Modifier.size(18.dp), tint = Color(0xFFD32F2F))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Eliminar Cuenta y Todos mis Datos", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
       }
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -586,7 +937,7 @@ fun ProfileScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
           Icon(Icons.Default.LocationOn, contentDescription = null, tint = JadeMaya)
           Spacer(modifier = Modifier.width(8.dp))
-          Text("Elige tu Estado 🇲🇽", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = JadeMaya)
+          Text("Elige tu Estado", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = JadeMaya)
         }
       },
       text = {
@@ -686,8 +1037,6 @@ fun ProfileScreen(
                       fontWeight = FontWeight.Bold,
                       color = if (isSelected) RosaMexicano else Color(0xFF212121)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = mascot.emoji, fontSize = 16.sp)
                   }
                   Text(
                     text = getMascotRealAnimalName(mascot.id),
@@ -763,6 +1112,238 @@ fun ProfileScreen(
       dismissButton = {
         OutlinedButton(onClick = { showSignOutDialog = false }) {
           Text("Cancelar")
+        }
+      }
+    )
+  }
+
+  // DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN DE CUENTA (DERECHOS ARCO)
+  if (showDeleteAccountDialog) {
+    AlertDialog(
+      onDismissRequest = { showDeleteAccountDialog = false },
+      icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(36.dp)) },
+      title = { Text("¿Eliminar Cuenta y Todos los Datos?", fontWeight = FontWeight.Bold, fontSize = 17.sp, textAlign = TextAlign.Center) },
+      text = {
+        Text(
+          text = "Esta acción es definitiva conforme a la Ley y tus Derechos ARCO. Se eliminarán permanentemente tus puntos, racha, medallas obtenidas y registros escolares de la base de datos.",
+          fontSize = 13.sp,
+          color = Color.DarkGray,
+          lineHeight = 18.sp
+        )
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            showDeleteAccountDialog = false
+            onDeleteAccount()
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+          modifier = Modifier.testTag("confirm_delete_account_button")
+        ) {
+          Text("Sí, Eliminar Definitivamente", fontWeight = FontWeight.Bold, color = Color.White)
+        }
+      },
+      dismissButton = {
+        OutlinedButton(onClick = { showDeleteAccountDialog = false }) {
+          Text("Cancelar")
+        }
+      }
+    )
+  }
+
+  // 6. Armario de Cosméticos y Títulos (Diálogo de Equipamiento)
+  if (showWardrobeDialog) {
+    var wardrobeTab by remember { mutableIntStateOf(0) }
+    val accessories = remember { StoreCatalog.ITEMS.filter { it.category == StoreCategory.ACCESORIOS } }
+    val titles = remember { StoreCatalog.ITEMS.filter { it.category == StoreCategory.TITULOS } }
+    val currentList = if (wardrobeTab == 0) accessories else titles
+
+    AlertDialog(
+      onDismissRequest = { showWardrobeDialog = false },
+      title = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(Icons.Default.Checkroom, contentDescription = null, tint = RosaMexicano, modifier = Modifier.size(24.dp))
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Armario de Personalización",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+        }
+      },
+      text = {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 440.dp)
+        ) {
+          // Vista previa en vivo del avatar
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 4.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            MascotAvatar(
+              mascotId = profile.characterAvatar,
+              size = 80.dp,
+              borderColor = RosaMexicano,
+              borderWidth = 2.dp,
+              equippedAccessory = profile.equippedAccessory
+            )
+          }
+
+          if (profile.equippedTitle != "none") {
+            val titleObj = StoreCatalog.ITEMS.find { it.id == profile.equippedTitle }
+            Surface(
+              color = MaizGold.copy(alpha = 0.2f),
+              shape = RoundedCornerShape(8.dp),
+              modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 6.dp)
+            ) {
+              Text(
+                text = "${titleObj?.name ?: profile.equippedTitle}",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Cempasuchil,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
+
+          SecondaryTabRow(
+            selectedTabIndex = wardrobeTab,
+            containerColor = MaterialTheme.colorScheme.surface
+          ) {
+            Tab(
+              selected = wardrobeTab == 0,
+              onClick = { wardrobeTab = 0 },
+              text = { Text("Accesorios (${accessories.count { profile.unlockedItems.contains(it.id) }}/${accessories.size})", fontSize = 11.sp) }
+            )
+            Tab(
+              selected = wardrobeTab == 1,
+              onClick = { wardrobeTab = 1 },
+              text = { Text("Títulos (${titles.count { profile.unlockedItems.contains(it.id) }}/${titles.size})", fontSize = 11.sp) }
+            )
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            currentList.forEach { item ->
+              val isUnlocked = profile.unlockedItems.contains(item.id)
+              val isEquipped = if (item.category == StoreCategory.ACCESORIOS) {
+                profile.equippedAccessory == item.id
+              } else {
+                profile.equippedTitle == item.id
+              }
+
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isEquipped) RosaMexicano.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                border = androidx.compose.foundation.BorderStroke(
+                  if (isEquipped) 1.5.dp else 1.dp,
+                  if (isEquipped) RosaMexicano else MaterialTheme.colorScheme.outlineVariant
+                ),
+                modifier = Modifier.fillMaxWidth().testTag("wardrobe_item_${item.id}")
+              ) {
+                Row(
+                  modifier = Modifier.padding(10.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Box(
+                    modifier = Modifier
+                      .size(38.dp)
+                      .clip(CircleShape)
+                      .background(
+                        if (isUnlocked) (if (isEquipped) RosaMexicano.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                        else MaterialTheme.colorScheme.surfaceVariant
+                      ),
+                    contentAlignment = Alignment.Center
+                  ) {
+                    Icon(
+                      imageVector = getStoreItemVector(item.id, item.category),
+                      contentDescription = item.name,
+                      tint = if (isUnlocked) (if (isEquipped) RosaMexicano else TalaveraBlue) else Color.Gray,
+                      modifier = Modifier.size(20.dp)
+                    )
+                  }
+
+                  Spacer(modifier = Modifier.width(10.dp))
+
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = item.name,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                      text = item.description,
+                      fontSize = 10.sp,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      maxLines = 1,
+                      overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                  }
+
+                  Spacer(modifier = Modifier.width(8.dp))
+
+                  if (isUnlocked) {
+                    if (isEquipped) {
+                      Button(
+                        onClick = { onEquipItem(item) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.testTag("btn_unequip_${item.id}")
+                      ) {
+                        Text("Quitar", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                      }
+                    } else {
+                      Button(
+                        onClick = { onEquipItem(item) },
+                        colors = ButtonDefaults.buttonColors(containerColor = RosaMexicano),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.testTag("btn_equip_${item.id}")
+                      ) {
+                        Text("Equipar", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                      }
+                    }
+                  } else {
+                    OutlinedButton(
+                      onClick = {
+                        showWardrobeDialog = false
+                        onNavigateToStore()
+                      },
+                      shape = RoundedCornerShape(8.dp),
+                      contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                      modifier = Modifier.testTag("btn_buy_wardrobe_${item.id}")
+                    ) {
+                      Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(12.dp))
+                      Spacer(modifier = Modifier.width(3.dp))
+                      Text("${item.price}p", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = { showWardrobeDialog = false },
+          colors = ButtonDefaults.buttonColors(containerColor = TalaveraBlue),
+          shape = RoundedCornerShape(8.dp)
+        ) {
+          Text("Listo", fontWeight = FontWeight.Bold)
         }
       }
     )

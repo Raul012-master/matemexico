@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,8 +91,10 @@ fun StateChallengesScreen(
     }.sortedByDescending { it.currentPoints }
   }
 
-  val userStateChallenge = mergedChallenges.find { it.stateName.equals(userState, ignoreCase = true) }
-    ?: mergedChallenges.first()
+  val userStateChallenge = mergedChallenges.find { 
+    it.stateName.equals(userState, ignoreCase = true) ||
+    (it.stateName == "Ciudad de México" && userState.equals("cdmx", ignoreCase = true))
+  } ?: mergedChallenges.first()
 
   Scaffold(
     topBar = {
@@ -103,8 +106,8 @@ fun StateChallengesScreen(
         },
         title = {
           Column {
-            Text("Desafío Estatal Cooperativo 🇲🇽", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text("Unidos por el saber de México", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+            Text("Desafío Estatal Cooperativo", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("Compite y colabora por el saber matemático", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
           }
         },
         actions = {
@@ -119,7 +122,7 @@ fun StateChallengesScreen(
         )
       )
     },
-    containerColor = BackgroundCream
+    containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
     LazyColumn(
       modifier = Modifier
@@ -134,8 +137,8 @@ fun StateChallengesScreen(
             .fillMaxWidth()
             .testTag("current_state_hero_card"),
           shape = RoundedCornerShape(20.dp),
-          colors = CardDefaults.cardColors(containerColor = Color.White),
-          elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
         ) {
           Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -147,7 +150,7 @@ fun StateChallengesScreen(
                 Text(
                   text = "Tu Estado Representado:",
                   fontSize = 12.sp,
-                  color = Color.Gray,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
                   fontWeight = FontWeight.Medium
                 )
                 Text(
@@ -214,24 +217,45 @@ fun StateChallengesScreen(
                 Icon(Icons.Default.Group, contentDescription = null, tint = JadeMaya, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                  text = "${userStateChallenge.participantsCount} estudiantes activos",
+                  text = "${userStateChallenge.participantsCount} estudiantes sumando puntos",
                   fontSize = 12.sp,
-                  color = Color.Gray
+                  color = Color.DarkGray,
+                  fontWeight = FontWeight.Medium
                 )
               }
-
-              val contribution = if (userPoints > 0) userPoints.coerceAtMost(50L) else 25L
-              Button(
-                onClick = {
-                  onContributePoints(userStateChallenge.stateId, userStateChallenge.stateName, contribution)
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Cempasuchil),
-                modifier = Modifier.testTag("contribute_points_button")
+              Surface(
+                color = Cempasuchil.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp)
               ) {
-                Icon(Icons.Default.VolunteerActivism, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Aportar +$contribution pts", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(
+                  text = "${(progress * 100).toInt()}% de la meta",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFFE65100),
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+              }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+              color = Color(0xFFE8F5E9),
+              shape = RoundedCornerShape(12.dp),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(Icons.Default.Stars, contentDescription = null, tint = CactusGreen, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                  text = "¡Tus puntos se suman automáticamente a ${userStateChallenge.stateName} cada vez que juegas y resuelves ejercicios!",
+                  fontSize = 11.sp,
+                  color = Color(0xFF1B5E20),
+                  lineHeight = 15.sp
+                )
               }
             }
           }
@@ -239,13 +263,24 @@ fun StateChallengesScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-          text = "🏆 Tabla de Clasificación Regional",
-          fontSize = 18.sp,
-          fontWeight = FontWeight.ExtraBold,
-          color = TalaveraBlue,
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
           modifier = Modifier.padding(vertical = 4.dp)
-        )
+        ) {
+          Icon(
+            imageVector = Icons.Default.EmojiEvents,
+            contentDescription = null,
+            tint = MaizGold,
+            modifier = Modifier.size(24.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Tabla de Clasificación Regional",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TalaveraBlue
+          )
+        }
         Text(
           text = "Cada respuesta correcta en los desafíos suma al puntaje de tu estado.",
           fontSize = 12.sp,
@@ -272,9 +307,9 @@ fun StateChallengesScreen(
             .padding(vertical = 4.dp)
             .testTag("state_rank_card_$rank"),
           shape = RoundedCornerShape(14.dp),
-          color = if (isUserItem) Color(0xFFE8F5E9) else Color.White,
-          border = if (isUserItem) androidx.compose.foundation.BorderStroke(2.dp, CactusGreen) else null,
-          shadowElevation = 2.dp
+          color = if (isUserItem) CactusGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+          border = if (isUserItem) androidx.compose.foundation.BorderStroke(2.dp, CactusGreen) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+          shadowElevation = 1.dp
         ) {
           Row(
             modifier = Modifier.padding(14.dp),
@@ -290,7 +325,7 @@ fun StateChallengesScreen(
               if (rank <= 3) {
                 Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
               } else {
-                Text(text = "$rank", fontWeight = FontWeight.Bold, color = Color.DarkGray, fontSize = 14.sp)
+                Text(text = "$rank", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
               }
             }
 
@@ -302,7 +337,7 @@ fun StateChallengesScreen(
                   text = challenge.stateName,
                   fontSize = 15.sp,
                   fontWeight = FontWeight.Bold,
-                  color = if (isUserItem) CactusGreen else Color(0xFF212121)
+                  color = if (isUserItem) CactusGreen else MaterialTheme.colorScheme.onSurface
                 )
                 if (isUserItem) {
                   Spacer(modifier = Modifier.width(8.dp))
@@ -352,7 +387,7 @@ fun StateChallengesScreen(
   if (showStateSelectorDialog) {
     androidx.compose.material3.AlertDialog(
       onDismissRequest = { showStateSelectorDialog = false },
-      title = { Text("Elige tu Estado 🇲🇽", fontWeight = FontWeight.Bold, color = TalaveraBlue) },
+      title = { Text("Elige tu Estado de la República", fontWeight = FontWeight.Bold, color = TalaveraBlue) },
       text = {
         LazyColumn(modifier = Modifier.height(320.dp)) {
           itemsIndexed(CurriculumGenerator.MEXICAN_STATES) { _, stateName ->

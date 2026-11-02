@@ -25,13 +25,21 @@ service cloud.firestore {
     // User Profile Validation
     function isValidUserProfile(data) {
       return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
-             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 50 &&
-             data.grade is string && data.grade.size() > 0 && data.grade.size() <= 30 &&
-             data.selectedState is string && data.selectedState.size() > 0 && data.selectedState.size() <= 40 &&
-             data.characterAvatar is string && data.characterAvatar.size() > 0 && data.characterAvatar.size() <= 30 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 60 &&
+             data.grade is string && data.grade.size() > 0 && data.grade.size() <= 40 &&
+             data.selectedState is string && data.selectedState.size() > 0 && data.selectedState.size() <= 50 &&
+             data.characterAvatar is string && data.characterAvatar.size() > 0 && data.characterAvatar.size() <= 40 &&
              data.totalPoints is int && data.totalPoints >= 0 &&
              data.currentStreak is int && data.currentStreak >= 0 &&
-             (!('lastActiveDate' in data) || (data.lastActiveDate is string && data.lastActiveDate.size() <= 20)) &&
+             (!('lastActiveDate' in data) || (data.lastActiveDate is string && data.lastActiveDate.size() <= 30)) &&
+             (!('lastDailyChallengeDate' in data) || (data.lastDailyChallengeDate is string && data.lastDailyChallengeDate.size() <= 30)) &&
+             (!('equippedAccessory' in data) || (data.equippedAccessory is string && data.equippedAccessory.size() <= 60)) &&
+             (!('equippedTitle' in data) || (data.equippedTitle is string && data.equippedTitle.size() <= 80)) &&
+             (!('unlockedItems' in data) || (data.unlockedItems is list && data.unlockedItems.size() <= 100)) &&
+             (!('powerUp5050Count' in data) || (data.powerUp5050Count is int && data.powerUp5050Count >= 0)) &&
+             (!('powerUpExtraTimeCount' in data) || (data.powerUpExtraTimeCount is int && data.powerUpExtraTimeCount >= 0)) &&
+             (!('powerUpStreakShieldCount' in data) || (data.powerUpStreakShieldCount is int && data.powerUpStreakShieldCount >= 0)) &&
+             (!('powerUpDoublePointsCount' in data) || (data.powerUpDoublePointsCount is int && data.powerUpDoublePointsCount >= 0)) &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
              data.updatedAt is timestamp && data.updatedAt <= request.time;
     }
@@ -90,16 +98,14 @@ service cloud.firestore {
                        isValidId(userId) &&
                        incoming().userId == request.auth.uid &&
                        incoming().keys().hasAll(['userId', 'displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'createdAt', 'updatedAt']) &&
-                       incoming().keys().hasOnly(['userId', 'displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'lastActiveDate', 'createdAt', 'updatedAt']) &&
                        isValidUserProfile(incoming());
 
       allow update: if isSignedIn() &&
                        request.auth.uid == userId &&
                        isValidId(userId) &&
                        incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
                        isValidUserProfile(incoming()) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'grade', 'selectedState', 'characterAvatar', 'totalPoints', 'currentStreak', 'lastActiveDate', 'updatedAt']);
+                       (incoming().totalPoints <= existing().totalPoints + 600 || incoming().totalPoints <= existing().totalPoints);
 
       allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
 

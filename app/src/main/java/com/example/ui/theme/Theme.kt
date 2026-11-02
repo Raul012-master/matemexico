@@ -12,16 +12,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-  primary = RosaMexicano,
-  onPrimary = Color.White,
-  primaryContainer = RosaMexicanoDark,
-  secondary = Cempasuchil,
-  onSecondary = Color.Black,
-  tertiary = JadeMayaLight,
-  background = Color(0xFF121212),
-  surface = Color(0xFF1E1E1E),
-  onBackground = Color(0xFFEDE7F6),
-  onSurface = Color(0xFFEDE7F6)
+  primary = TalaveraBlueLight,
+  onPrimary = Color(0xFF07213A),
+  primaryContainer = Color(0xFF0E3862),
+  onPrimaryContainer = Color(0xFFD2E4FF),
+  secondary = RosaMexicanoBright,
+  onSecondary = Color(0xFF3D001C),
+  secondaryContainer = Color(0xFF5D0E30),
+  onSecondaryContainer = Color(0xFFFFD9E2),
+  tertiary = CempasuchilGlow,
+  onTertiary = Color(0xFF452A00),
+  tertiaryContainer = Color(0xFF613F00),
+  onTertiaryContainer = Color(0xFFFFDDB2),
+  background = DarkObsidianBackground,
+  onBackground = DarkTextPrimary,
+  surface = DarkCardSurface,
+  onSurface = DarkTextPrimary,
+  surfaceVariant = DarkCardSurfaceVariant,
+  onSurfaceVariant = DarkTextSecondary,
+  outline = DarkBorder,
+  outlineVariant = Color(0xFF283340)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -37,15 +47,26 @@ private val LightColorScheme = lightColorScheme(
   background = BackgroundCream,
   surface = SurfaceCard,
   onBackground = TextDark,
-  onSurface = TextDark
+  onSurface = TextDark,
+  surfaceVariant = Color(0xFFF1F5F9),
+  onSurfaceVariant = TextMuted,
+  outline = Color(0xFFE2E8F0),
+  outlineVariant = Color(0xFFF1F5F9)
 )
 
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
+  themeMode: String = "system",
   dynamicColor: Boolean = false, // Keep Mexican cultural branding vibrant and consistent
   content: @Composable () -> Unit,
 ) {
+  val systemDark = isSystemInDarkTheme()
+  val darkTheme = when (themeMode) {
+    "dark" -> true
+    "light" -> false
+    else -> systemDark
+  }
+
   val colorScheme = when {
     dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
       val context = LocalContext.current

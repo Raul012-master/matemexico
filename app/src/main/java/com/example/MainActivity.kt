@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -17,7 +18,9 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -46,6 +49,7 @@ import com.example.data.model.LevelInfo
 import com.example.data.model.MathQuestion
 import com.example.data.model.SessionStat
 import com.example.data.model.StateChallenge
+import com.example.data.model.StoreItem
 import com.example.data.model.UserProfile
 import com.example.data.repository.MathRepository
 import com.example.ui.screens.AdventureScreen
@@ -53,10 +57,13 @@ import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DuelScreen
 import com.example.ui.screens.GamePlayScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.LegalTermsScreen
 import com.example.ui.screens.MedalsScreen
 import com.example.ui.screens.ParentPortalScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.StateChallengesScreen
+import com.example.ui.screens.StoreScreen
+import com.example.ui.screens.TienditaScreen
 import com.example.ui.screens.TimeAttackScreen
 import com.example.ui.screens.performSignOut
 import com.example.ui.theme.BackgroundCream
@@ -69,6 +76,7 @@ import com.example.util.NotificationHelper
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import android.util.Log
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -78,8 +86,9 @@ import java.util.Locale
 enum class AppTab(val title: String) {
   INICIO("Inicio"),
   JUGAR("Jugar"),
-  ESTADOS("Estados"),
+  MERCADITO("Mercadito"),
   LOGROS("Logros"),
+  ESTADOS("Estados"),
   ESTADISTICAS("Estadísticas")
 }
 
@@ -90,15 +99,27 @@ class MainActivity : ComponentActivity() {
     NotificationHelper.createNotificationChannel(this)
 
     setContent {
-      MyApplicationTheme {
-        MateMexicoApp()
+      val prefs = remember { getSharedPreferences("matemexico_ui_prefs", Context.MODE_PRIVATE) }
+      var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
+
+      MyApplicationTheme(themeMode = themeMode) {
+        MateMexicoApp(
+          themeMode = themeMode,
+          onUpdateThemeMode = { newMode ->
+            themeMode = newMode
+            prefs.edit().putString("theme_mode", newMode).apply()
+          }
+        )
       }
     }
   }
 }
 
 @Composable
-fun MateMexicoApp() {
+fun MateMexicoApp(
+  themeMode: String = "system",
+  onUpdateThemeMode: (String) -> Unit = {}
+) {
   val context = LocalContext.current
   val coroutineScope = rememberCoroutineScope()
   val credentialManager = remember { CredentialManager.create(context) }
@@ -134,6 +155,8 @@ fun MateMexicoApp() {
       userId = uid,
       isOffline = currentUser == null,
       repository = repository,
+      themeMode = themeMode,
+      onUpdateThemeMode = onUpdateThemeMode,
       onSignOut = {
         if (currentUser != null) {
           performSignOut(context, credentialManager, onSignOutComplete = {
@@ -142,6 +165,20 @@ fun MateMexicoApp() {
           }, scope = coroutineScope)
         } else {
           isOfflineModeActive = false
+        }
+      },
+      onAccountDeleted = {
+        coroutineScope.launch {
+          try {
+            performSignOut(context, credentialManager, onSignOutComplete = {
+              currentUser = null
+              isOfflineModeActive = false
+            }, scope = coroutineScope)
+          } catch (_: Exception) {
+            Firebase.auth.signOut()
+            currentUser = null
+            isOfflineModeActive = false
+          }
         }
       }
     )
@@ -153,13 +190,19 @@ fun MainFeatureContainer(
   userId: String,
   isOffline: Boolean,
   repository: MathRepository,
-  onSignOut: () -> Unit
+  themeMode: String = "system",
+  onUpdateThemeMode: (String) -> Unit = {},
+  onSignOut: () -> Unit,
+  onAccountDeleted: () -> Unit = onSignOut
 ) {
   val context = LocalContext.current
   val coroutineScope = rememberCoroutineScope()
 
-  // Local state initialized to authentic zero-baseline for new profiles
-  var localProfile by remember {
+  // Local state initialized with cached preferences
+  val dailyPrefs = remember { context.getSharedPreferences("matemexico_daily_prefs", Context.MODE_PRIVATE) }
+  val savedDailyDate = remember { dailyPrefs.getString("last_daily_challenge_date", "") ?: "" }
+
+  var localProfile by remember(userId) {
     mutableStateOf(
       UserProfile(
         userId = userId,
@@ -168,14 +211,15 @@ fun MainFeatureContainer(
         selectedState = "Oaxaca",
         characterAvatar = "ajolote",
         totalPoints = 0L,
-        currentStreak = 0L
+        currentStreak = 0L,
+        lastDailyChallengeDate = savedDailyDate
       )
     )
   }
 
-  var progressMap by remember { mutableStateOf<Map<String, GradeProgress>>(emptyMap()) }
-  var craftMedals by remember { mutableStateOf<List<CraftMedal>>(emptyList()) }
-  var sessionStats by remember { mutableStateOf<List<SessionStat>>(emptyList()) }
+  var progressMap by remember(userId) { mutableStateOf<Map<String, GradeProgress>>(emptyMap()) }
+  var craftMedals by remember(userId) { mutableStateOf<List<CraftMedal>>(emptyList()) }
+  var sessionStats by remember(userId) { mutableStateOf<List<SessionStat>>(emptyList()) }
   var stateChallenges by remember { mutableStateOf<List<StateChallenge>>(emptyList()) }
 
   fun checkAndUnlockMedal(medalId: String, name: String, state: String, desc: String) {
@@ -199,43 +243,60 @@ fun MainFeatureContainer(
   // Connect and sync with Firestore database when authenticated
   LaunchedEffect(userId, isOffline) {
     if (!isOffline) {
-      coroutineScope.launch {
-        // Seed default Mexican state challenges in Firestore if collection is empty
-        repository.seedStateChallengesIfEmpty(CurriculumGenerator.MEXICAN_STATES)
+      launch {
+        try {
+          repository.seedStateChallengesIfEmpty(CurriculumGenerator.MEXICAN_STATES)
+        } catch (e: Exception) {
+          Log.w("MainActivity", "seedStateChallenges error: ${e.message}")
+        }
       }
 
-      coroutineScope.launch {
-        repository.observeUserProfile(userId)
-          .catch { }
-          .collect { profile ->
-            if (profile != null) {
-              localProfile = profile
-            } else {
-              repository.saveUserProfile(localProfile)
+      launch {
+        try {
+          repository.observeUserProfile(userId)
+            .catch { e -> Log.w("MainActivity", "observeUserProfile error: ${e.message}") }
+            .collect { profile ->
+              if (profile != null) {
+                localProfile = profile
+              } else {
+                try {
+                  repository.saveUserProfile(localProfile)
+                } catch (e: Exception) {
+                  Log.w("MainActivity", "saveUserProfile error: ${e.message}")
+                }
+              }
             }
-          }
+        } catch (e: Exception) {
+          Log.w("MainActivity", "observeUserProfile collector error: ${e.message}")
+        }
       }
 
-      coroutineScope.launch {
-        repository.observeCraftMedals(userId)
-          .catch { }
-          .collect { medals -> craftMedals = medals }
+      launch {
+        try {
+          repository.observeCraftMedals(userId)
+            .catch { }
+            .collect { medals -> craftMedals = medals }
+        } catch (_: Exception) {}
       }
 
-      coroutineScope.launch {
-        repository.observeSessionStats(userId)
-          .catch { }
-          .collect { stats -> sessionStats = stats }
+      launch {
+        try {
+          repository.observeSessionStats(userId)
+            .catch { }
+            .collect { stats -> sessionStats = stats }
+        } catch (_: Exception) {}
       }
 
-      coroutineScope.launch {
-        repository.observeStateChallenges()
-          .catch { }
-          .collect { challenges ->
-            if (challenges.isNotEmpty()) {
-              stateChallenges = challenges
+      launch {
+        try {
+          repository.observeStateChallenges()
+            .catch { }
+            .collect { challenges ->
+              if (challenges.isNotEmpty()) {
+                stateChallenges = challenges
+              }
             }
-          }
+        } catch (_: Exception) {}
       }
     }
   }
@@ -243,7 +304,7 @@ fun MainFeatureContainer(
   // Observe grade progress from Firestore whenever grade changes
   LaunchedEffect(userId, isOffline, localProfile.grade) {
     if (!isOffline) {
-      coroutineScope.launch {
+      try {
         repository.observeGradeProgress(userId, localProfile.grade)
           .catch { }
           .collect { prog ->
@@ -251,7 +312,7 @@ fun MainFeatureContainer(
               progressMap = progressMap + (localProfile.grade to prog)
             }
           }
-      }
+      } catch (_: Exception) {}
     }
   }
 
@@ -264,20 +325,48 @@ fun MainFeatureContainer(
   var activeQuestions by remember { mutableStateOf<List<MathQuestion>>(emptyList()) }
   var isPlayingTimeAttack by remember { mutableStateOf(false) }
   var isPlayingDuel by remember { mutableStateOf(false) }
+  var isPlayingTiendita by remember { mutableStateOf(false) }
   var isProfileActive by remember { mutableStateOf(false) }
+  var isLegalTermsActive by remember { mutableStateOf(false) }
 
   // Back handling when in a sub-screen
-  if (currentTab != AppTab.INICIO && activeGameLevel == null && !isPlayingTimeAttack && !isPlayingDuel && !isProfileActive) {
+  if (currentTab != AppTab.INICIO && activeGameLevel == null && !isPlayingTimeAttack && !isPlayingDuel && !isPlayingTiendita && !isProfileActive && !isLegalTermsActive) {
     BackHandler {
       currentTab = AppTab.INICIO
     }
   }
 
-  if (isProfileActive) {
+  if (isLegalTermsActive) {
+    LegalTermsScreen(
+      onNavigateBack = { isLegalTermsActive = false }
+    )
+  } else if (isPlayingTiendita) {
+    TienditaScreen(
+      onFinishSession = { pointsEarned, ordersCompleted ->
+        val updatedPoints = localProfile.totalPoints + pointsEarned
+        localProfile = localProfile.copy(totalPoints = updatedPoints)
+        if (!isOffline) {
+          coroutineScope.launch {
+            try {
+              repository.saveUserProfile(localProfile)
+              repository.contributeToStateChallenge(
+                stateId = localProfile.selectedState.lowercase().replace(" ", "_"),
+                stateName = localProfile.selectedState,
+                pointsToAdd = pointsEarned
+              )
+            } catch (_: Exception) {}
+          }
+        }
+      },
+      onNavigateBack = { isPlayingTiendita = false }
+    )
+  } else if (isProfileActive) {
     ProfileScreen(
       profile = localProfile,
       unlockedMedalsCount = craftMedals.size,
       isOffline = isOffline,
+      themeMode = themeMode,
+      onUpdateThemeMode = onUpdateThemeMode,
       onUpdateGrade = { newGrade ->
         localProfile = localProfile.copy(grade = newGrade)
         if (!isOffline) {
@@ -302,6 +391,34 @@ fun MainFeatureContainer(
           }
         }
       },
+      onEquipItem = { item ->
+        coroutineScope.launch {
+          try {
+            val updated = repository.equipStoreItem(userId, localProfile, item)
+            localProfile = updated
+          } catch (e: Exception) {
+            Toast.makeText(context, e.message ?: "Error al equipar", Toast.LENGTH_SHORT).show()
+          }
+        }
+      },
+      onNavigateToStore = {
+        isProfileActive = false
+        currentTab = AppTab.MERCADITO
+      },
+      onNavigateToLegalTerms = { isLegalTermsActive = true },
+      onDeleteAccount = {
+        isProfileActive = false
+        coroutineScope.launch {
+          try {
+            if (!isOffline) {
+              repository.deleteUserAccountAndData(userId)
+            }
+          } catch (_: Exception) {}
+          dailyPrefs.edit().clear().apply()
+          Toast.makeText(context, "Cuenta y datos eliminados. Regresando al inicio de sesión...", Toast.LENGTH_SHORT).show()
+          onAccountDeleted()
+        }
+      },
       onNavigateBack = { isProfileActive = false },
       onSignOut = onSignOut
     )
@@ -314,13 +431,41 @@ fun MainFeatureContainer(
       grade = activeGameGrade.replace('_', ' ').uppercase(),
       questions = activeQuestions,
       mascotId = localProfile.characterAvatar,
+      powerUp5050Count = localProfile.powerUp5050Count,
+      powerUpExtraTimeCount = localProfile.powerUpExtraTimeCount,
+      powerUpStreakShieldCount = localProfile.powerUpStreakShieldCount,
+      powerUpDoublePointsCount = localProfile.powerUpDoublePointsCount,
+      onConsumePowerUp = { powerUpId ->
+        localProfile = when (powerUpId) {
+          "powerup_5050" -> localProfile.copy(powerUp5050Count = (localProfile.powerUp5050Count - 1).coerceAtLeast(0L))
+          "powerup_extra_time" -> localProfile.copy(powerUpExtraTimeCount = (localProfile.powerUpExtraTimeCount - 1).coerceAtLeast(0L))
+          "powerup_shield" -> localProfile.copy(powerUpStreakShieldCount = (localProfile.powerUpStreakShieldCount - 1).coerceAtLeast(0L))
+          "powerup_double" -> localProfile.copy(powerUpDoublePointsCount = (localProfile.powerUpDoublePointsCount - 1).coerceAtLeast(0L))
+          else -> localProfile
+        }
+        if (!isOffline) {
+          coroutineScope.launch {
+            try { repository.saveUserProfile(localProfile) } catch (_: Exception) {}
+          }
+        }
+      },
       onFinishGame = { correctCount, totalQuestions, pointsEarned, timeTakenSeconds ->
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val updatedPoints = localProfile.totalPoints + pointsEarned
-        localProfile = localProfile.copy(
+        val isDailyChallenge = activeGameLevel?.levelNumber == 99 ||
+                               activeGameLevel?.title?.contains("Desafío Diario", ignoreCase = true) == true ||
+                               activeGameLevel?.topic?.contains("Desafío", ignoreCase = true) == true
+
+        if (isDailyChallenge) {
+          dailyPrefs.edit().putString("last_daily_challenge_date", today).apply()
+        }
+
+        val updatedProfile = localProfile.copy(
           totalPoints = updatedPoints,
-          lastActiveDate = today
+          lastActiveDate = today,
+          lastDailyChallengeDate = if (isDailyChallenge) today else localProfile.lastDailyChallengeDate
         )
+        localProfile = updatedProfile
 
         // Save session stat
         val newStat = SessionStat(
@@ -455,7 +600,7 @@ fun MainFeatureContainer(
     Scaffold(
       bottomBar = {
         NavigationBar(
-          containerColor = Color.White,
+          containerColor = MaterialTheme.colorScheme.surface,
           tonalElevation = 8.dp
         ) {
           NavigationBarItem(
@@ -466,7 +611,7 @@ fun MainFeatureContainer(
             colors = NavigationBarItemDefaults.colors(
               selectedIconColor = TalaveraBlue,
               selectedTextColor = TalaveraBlue,
-              indicatorColor = Color(0xFFBBDEFB)
+              indicatorColor = MaterialTheme.colorScheme.primaryContainer
             ),
             modifier = Modifier.testTag("nav_home")
           )
@@ -478,21 +623,21 @@ fun MainFeatureContainer(
             colors = NavigationBarItemDefaults.colors(
               selectedIconColor = RosaMexicano,
               selectedTextColor = RosaMexicano,
-              indicatorColor = Color(0xFFF8BBD0)
+              indicatorColor = MaterialTheme.colorScheme.secondaryContainer
             ),
             modifier = Modifier.testTag("nav_play")
           )
           NavigationBarItem(
-            selected = currentTab == AppTab.ESTADISTICAS,
-            onClick = { currentTab = AppTab.ESTADISTICAS },
-            icon = { Icon(Icons.Default.Assessment, contentDescription = "Estadísticas") },
-            label = { Text("Estadísticas", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+            selected = currentTab == AppTab.MERCADITO,
+            onClick = { currentTab = AppTab.MERCADITO },
+            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Mercadito") },
+            label = { Text("Mercadito", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
             colors = NavigationBarItemDefaults.colors(
-              selectedIconColor = TalaveraBlue,
-              selectedTextColor = TalaveraBlue,
-              indicatorColor = Color(0xFFBBDEFB)
+              selectedIconColor = Cempasuchil,
+              selectedTextColor = Cempasuchil,
+              indicatorColor = MaterialTheme.colorScheme.tertiaryContainer
             ),
-            modifier = Modifier.testTag("nav_stats")
+            modifier = Modifier.testTag("nav_mercadito")
           )
           NavigationBarItem(
             selected = currentTab == AppTab.LOGROS,
@@ -502,7 +647,7 @@ fun MainFeatureContainer(
             colors = NavigationBarItemDefaults.colors(
               selectedIconColor = Cempasuchil,
               selectedTextColor = Cempasuchil,
-              indicatorColor = Color(0xFFFFE0B2)
+              indicatorColor = MaterialTheme.colorScheme.tertiaryContainer
             ),
             modifier = Modifier.testTag("nav_achievements")
           )
@@ -514,13 +659,13 @@ fun MainFeatureContainer(
             colors = NavigationBarItemDefaults.colors(
               selectedIconColor = JadeMaya,
               selectedTextColor = JadeMaya,
-              indicatorColor = Color(0xFFB2DFDB)
+              indicatorColor = MaterialTheme.colorScheme.primaryContainer
             ),
             modifier = Modifier.testTag("nav_states")
           )
         }
       },
-      containerColor = BackgroundCream
+      containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
       Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
         when (currentTab) {
@@ -533,17 +678,29 @@ fun MainFeatureContainer(
               onNavigateToTimeAttack = { isPlayingTimeAttack = true },
               onNavigateToDuel = { isPlayingDuel = true },
               onNavigateToDailyChallenge = {
-                activeGameGrade = localProfile.grade
-                activeQuestions = CurriculumGenerator.generateDailyChallengeQuestions(localProfile.grade)
-                activeGameLevel = LevelInfo(
-                  levelNumber = 99,
-                  title = "Desafío Diario: El Tianguis",
-                  topic = "Desafío del Día",
-                  description = "Reto del día de cálculo mental rápido y racha escolar.",
-                  iconEmoji = "🌮",
-                  totalQuestions = 3
-                )
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val localSavedDate = dailyPrefs.getString("last_daily_challenge_date", "") ?: ""
+                if (localProfile.lastDailyChallengeDate == today || localSavedDate == today) {
+                  Toast.makeText(
+                    context,
+                    "¡Ya completaste el desafío de hoy! 🎉 Vuelve mañana para seguir aumentando tu racha.",
+                    Toast.LENGTH_LONG
+                  ).show()
+                } else {
+                  activeGameGrade = localProfile.grade
+                  activeQuestions = CurriculumGenerator.generateDailyChallengeQuestions(localProfile.grade)
+                  activeGameLevel = LevelInfo(
+                    levelNumber = 99,
+                    title = "Desafío Diario: El Tianguis",
+                    topic = "Desafío del Día",
+                    description = "Reto del día de cálculo mental rápido y racha escolar.",
+                    iconEmoji = "🌮",
+                    totalQuestions = 3
+                  )
+                }
               },
+              onNavigateToTiendita = { isPlayingTiendita = true },
+              onNavigateToStore = { currentTab = AppTab.MERCADITO },
               onNavigateToStats = { currentTab = AppTab.ESTADISTICAS },
               onNavigateToAchievements = { currentTab = AppTab.LOGROS },
               onNavigateToStates = { currentTab = AppTab.ESTADOS },
@@ -575,6 +732,34 @@ fun MainFeatureContainer(
                 if (!isOffline) {
                   coroutineScope.launch {
                     try { repository.saveUserProfile(localProfile) } catch (_: Exception) { }
+                  }
+                }
+              },
+              onNavigateToTiendita = { isPlayingTiendita = true },
+              onNavigateBack = { currentTab = AppTab.INICIO }
+            )
+          }
+
+          AppTab.MERCADITO -> {
+            StoreScreen(
+              profile = localProfile,
+              onPurchaseItem = { item ->
+                coroutineScope.launch {
+                  try {
+                    val updated = repository.purchaseStoreItem(userId, localProfile, item)
+                    localProfile = updated
+                  } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: "Error en la compra", Toast.LENGTH_SHORT).show()
+                  }
+                }
+              },
+              onEquipItem = { item ->
+                coroutineScope.launch {
+                  try {
+                    val updated = repository.equipStoreItem(userId, localProfile, item)
+                    localProfile = updated
+                  } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: "Error al equipar", Toast.LENGTH_SHORT).show()
                   }
                 }
               },
